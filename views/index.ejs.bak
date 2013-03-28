@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title><%= title %></title>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/javascripts/index_process.js"></script>
+    <script src="/javascripts/canvas.js"></script>
+    <link rel='stylesheet' href='/stylesheets/style.css' />
+  </head>
+  <body>
+    <canvas id="myCanvas"></canvas> 
+    <textarea id="inputarea" rows="1" cols="5"></textarea>
+    <textarea id="outputarea" rows="1" cols="5"></textarea>
+    
+  </body>
+</html>

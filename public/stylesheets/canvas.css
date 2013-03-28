@@ -1,0 +1,79 @@
+@font-face
+{
+font-family: myFont;
+src: url('hand-of-sean.ttf');
+}
+
+body{
+	font-size: 62.5%;
+	background-color: rgb(0,138,200);
+}
+
+canvas{
+	background-color: rgb(238,238,238);
+	position:absolute;
+	left:270px;
+	top:50px;
+	min-width: 600px;
+
+}
+
+#myeraser{
+	background-color: rgb(0,190,0);
+	position: absolute;
+	left: 270px;
+	top:15px;
+	height: 25px;
+	width: 25px;
+}
+
+#clear_btn{
+	background-color: rgb(200,190,0);
+	position: absolute;
+	left: 305px;
+	top:15px;
+	height: 25px;
+	width: 25px;
+}
+
+#friend_list{
+	background-color: rgb(100,190,50);
+	position: absolute;
+	left: 150px;
+	top:50px;
+	height: 560px;
+	width: 100px;
+}
+
+#login_mask{
+	height: 70em;
+	background-color:rgb(145,210,165);
+}
+
+#aside{
+	float: right;
+	background-color:rgb(45,150,125);
+	height: 100%;
+	width: 38.2%;
+}
+
+#logo{
+	float: left;
+	width: 50%;
+	height: 100%;
+	line-height: 3em;
+	font-family: myFont;
+	font-size: 10em;
+	text-align: right;
+	color: rgb(90, 20, 20);
+
+}
+
+#login_panel{
+	position: absolute;
+	top:20%;
+	width: 100%;
+	height: 20em;
+	background-color: rgba(200,200,200,0.5);
+}
+

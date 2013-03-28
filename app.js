@@ -151,6 +151,13 @@ var Controller = {
 
     },
 
+    /**
+    *@desciption  come in to a room
+    *@param {String} roomName, the name of the new room
+    *@param {String} roomPassword, the password of the new room
+    *@param {Socket} socket_with_username, socket with creator's nickname as socket.userName
+    *@return null 
+    */
     'comeInRoom': function(roomName, roomPassword, socket_with_username){
 
     },

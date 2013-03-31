@@ -60,26 +60,27 @@ io.sockets.on('connection', function (socket) {
 });
 
 var initCanvas = function(px){
+    var MIN_HEIGHT = 400;
+    var HEIGHT_WIDTH_PERCENT = 0.6;
+    var MAX_WIDTH_PERCENT = 0.85;
+    var height_percent = 0.7;
     var height = px.height;
     var width = px.width;
     var canvas_height;
     var canvas_width;
-    for(var i=0;i<canvasSize.length;i++){
-        if(width<=canvasSize[i][0]){
-            continue;
-        }else{
-            canvas_height = canvasSize[i][1];
-            canvas_width = canvasSize[i][0];
+
+    while(1){
+        canvas_height = height * height_percent;
+        canvas_width = canvas_height/HEIGHT_WIDTH_PERCENT;
+        if(canvas_width <= (width*MAX_WIDTH_PERCENT)){
             break;
+        }else{
+            height_percent = height_percent - 0.05;
         }
     }
+
     return [canvas_width,canvas_height];  
 };
-
-var canvasSize =[
-    [1500,840],
-    [1000,560]   
-];
 
 var login = function(data){
     var username = data[0];
@@ -124,6 +125,22 @@ var ServerManager = {
             socket.on('leaveroom_req',function(data){
 
             });
+
+            socket.on('loadRoomId',function(data,callback){
+                var res_data = makeRoomId();
+                callback(res_data);
+            });
+
+            socket.on('createRoom',function(data,callback){
+                Controller.createRoom(data);
+                //then if cache isn't full, save in, nor to database
+            });
+
+            socket.on('joinRoom',function(data,callback){
+                //call function in Controller
+                //check 
+                //search from the cache ,then database
+            });
         });
     },
 
@@ -134,31 +151,65 @@ var ServerManager = {
 
 };
 
+
+var makeRoomId = function(){
+    var time = new Date();
+    time = time.getTime();
+    var result = (time-13131313)*13;
+    return result;
+};
+
+
 //the module in charge of manage room and canvas
 var Controller = {
+    'room_cache':[],
+    'roomCacheIsFull': (function(){
+        var that = this;
+        var room_cache_size = 1000;
 
-    'checkRoomName':function(roomName){
-
-    },
+        return function(){
+            if(that.room_cache.length < room_cache_size) return false;
+            return true;
+        };
+    })(),
     /**
     *@desciption  create a new room
-    *@param {String} roomName, the name of the new room
+    *@param {String} roomId, the id of the new room
     *@param {String} roomPassword, the password of the new room
     *@param {Socket} socket_with_username, socket with creator's nickname as socket.userName
     *@return null 
     */
-    'createRoom': function(roomName, roomPassword, socket_with_username){
+    'createRoom': function(roomId, roomPassword, socket_with_username){
+        socket_with_username.join(roomId);  //join in a room
 
+        var creator = socket_with_username.username;
+        if(!roomCacheIsFull){
+            room_cache.push([roomId,roomPassword,creator]);
+        }
+
+        var room = {
+            'roomId': roomId,
+            'roomPassword': roomPassword,
+            'creator': creator
+        }
+
+        MongoManager.addRoom(room);
+        
+    },
+
+    'newToCache':function(newroom){
+        room_cache.shift();
+        room_cache.push(newroom);
     },
 
     /**
     *@desciption  come in to a room
-    *@param {String} roomName, the name of the new room
+    *@param {String} roomId, the id of the new room
     *@param {String} roomPassword, the password of the new room
     *@param {Socket} socket_with_username, socket with creator's nickname as socket.userName
     *@return null 
     */
-    'comeInRoom': function(roomName, roomPassword, socket_with_username){
+    'comeInRoom': function(roomId, roomPassword, socket_with_username){
 
     },
 
@@ -172,4 +223,45 @@ var Controller = {
 };
 
 //the module in charge of reading and writing the mongodb
-var MongoManager = {};
+var MongoManager = {
+    'room':'',
+    'stroke_path':'',
+    'init': function(dbpath){
+        var mongoose = require('mongoose');
+        if(!this.db){
+            db = mongoose.connection;
+            db.on('error', console.error.bind(console, 'connection error:'));
+            db.once('open', function(){
+                console.log('mongo connected!');
+            });
+        }
+        mongoose.connect(dbpath);
+        setRoomSchema();
+
+    },
+
+    'setRoomSchema': function(){
+        var roomSchema = new Schema({
+            'roomId': String,
+            'password': String,
+            'creator': String,
+            'parter': String,
+            'createTime':{type: Date, default: Date.now }
+        });
+        this.room = mongoose.model('Room',roomSchema);
+    },
+
+    'addRoom': function(room){
+        
+        this.room.
+    },
+
+    'setStrokePathSchema': function(){
+        var strokePathSchema = new Schema({
+        });
+    },
+
+    'addRoom': function(room){
+
+    },
+};

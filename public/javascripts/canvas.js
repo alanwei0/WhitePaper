@@ -23,19 +23,11 @@ Socket.prototype = socketio;
 //======================================
 var LoginSocket = new Socket();
 LoginSocket.on = function(){
-	this._socket.on('loginsucceed_res',function(res){
-		LoginController.loginSucceed(res);
-	});
-	this._socket.on('loginfailed_res',function(res){
-		LoginController.loginFailed(res);
-	});
 
 };
-LoginSocket.emit = function(e,data){
-	switch(e){
-		case 'login':this._socket.emit('login_req',data);break;
-		
-	};
+
+LoginSocket.emit = function(e, data, callback){
+	this._socket.emit(e,data,callback);
 };
 //=======================================
 var FriendSocket = new Socket();
@@ -88,7 +80,7 @@ CanvasSocket.emit = function(e,data){
 
 
 //control module==============================
-var CanvasController = {
+var Controller = {
 	'canPaint': false,
 	'clickOnEraser': function(e){
 
@@ -111,43 +103,74 @@ var CanvasController = {
 
 	'clickClearBtn':function(e){
 		CanvasModel.clearCanvas();
-	}
-
-
-
-};
-//--------------------------------------------------
-var LoginController = {
-	'login':function(e){
-		LoginSocket.emit('login',[e.target.username,e.target.password]);
 	},
-	'loginSucceed':function(e){
+//---------------------------------------------------
+
+
+	'CreateRoom':function(e){
+		var roomId = e.data[0];
+		var password = e.data[1];
+		var username = e.data[2];
+		var data = [roomid,password,username];
+		LoginSocket.emit('createRoom',data,function(res_data){
+			CreateRoomSucceed(res_data);
+		});
+	},
+
+	'CreateRoomSucceed': function(succeed){
+		if(succeed){
+			LoginModel.fadeOut();
+			//CanvasModel
+		}else{
+			LoginModel.showCreateError();
+		}
+	},
+
+	//if succeed, the data will be [1,friend_name], otherwise, [0,error_data] 
+	'JoinRoomSucceed': function(succeed){
+		if(succeed[0]){
+			LoginModel.fadeOut();
+			//CanvasModel
+		}else{
+			LoginModel.showJoinError();
+		}
+	},
+
+	'JoinRoom': function(e){
+		var roomId = e.data[0];
+		var password = e.data[1];
+		var username = e.data[2];
+		var data = [roomid,password,username];
+		LoginSocket.emit('joinRoom',data,function(res_data){
+			JoinRoomSucceed(res_data);
+		});
 
 	},
-	'loginFailed':function(e){
 
-	}
+	'loadRoomId': function(){
+		LoginSocket.emit('loadRoomId','',function(res_data){
+			LoginModel.loadRoomId.call(LoginModel,res_data);
+		});
+	},
+//--------------------------------------------------------
+
 
 
 };
-
-var FriendController = {
-
-};
-
-
 //model module=======================================
 var CanvasModel = {
 	'UNSET':-1,
 	'context':null,
+	'canvas':{'width':0,'height':0},
 	'_local_pre_data':{'pre_x':this.UNSET,'pre_y':this.UNSET},
 	'_server_pre_data':{'pre_x':this.UNSET,'pre_y':this.UNSET},
 	
 	'preDraw':function(e){
 		if(e.data === LOCAL){
 			var coord = $(e.target).offset();
-			this._local_pre_data.pre_x = e.pageX - coord.left;
-			this._local_pre_data.pre_y = e.pageY - coord.top; 
+			var rel_pos = this.getRelativePos(e.pageX - coord.left , e.pageY - coord.top);
+			this._local_pre_data.pre_x = rel_pos[0];
+			this._local_pre_data.pre_y = rel_pos[1];
 			CanvasSocket.emit('predraw',
 			{	
 				'x':this._local_pre_data.pre_x,
@@ -168,24 +191,30 @@ var CanvasModel = {
 
 		if(e.data === LOCAL){
 			var coord = $(e.target).offset();
+
 			now_x = e.pageX - coord.left;
 			now_y = e.pageY - coord.top;
-			pre_x = this._local_pre_data.pre_x;
-			pre_y = this._local_pre_data.pre_y;
-			this._local_pre_data.pre_x = now_x;
-			this._local_pre_data.pre_y = now_y;
+
+			var abs_pos = this.getAbsolutePos(this._local_pre_data.pre_x,this._local_pre_data.pre_y);
+			pre_x = abs_pos[0];
+			pre_y = abs_pos[1];
+			var rel_pos = this.getRelativePos(now_x, now_y);
+			this._local_pre_data.pre_x = rel_pos[0];
+			this._local_pre_data.pre_y = rel_pos[1];
 			CanvasSocket.emit('draw',
 			{	
-				'x':now_x,
-				'y':now_y
+				'x':this._local_pre_data.pre_x,
+				'y':this._local_pre_data.pre_y
 			});
 		}else if(e.data === SERVER){
-			now_x = e.x;
-			now_y = e.y;
-			pre_x = this._server_pre_data.pre_x;
-			pre_y = this._server_pre_data.pre_y;
-			this._server_pre_data.pre_x = now_x;
-			this._server_pre_data.pre_y = now_y;
+			var now_abs_pos = this.getAbsolutePos(e.x,e.y);
+			now_x = now_abs_pos[0];
+			now_y = now_abs_pos[1];
+			pre_abs_pos = this.getAbsolutePos(this._server_pre_data.pre_x , this._server_pre_data.pre_y);
+			pre_x = pre_abs_pos[0];
+			pre_y = pre_abs_pos[1];
+			this._server_pre_data.pre_x = e.x;
+			this._server_pre_data.pre_y = e.y;
 		}
 
 		this.context.beginPath();
@@ -211,44 +240,77 @@ var CanvasModel = {
 		var canvas = $('#mycanvas')[0];
 		canvas.height = px[1];
 		canvas.width = px[0];
+		this.canvas.width = canvas.width;
+		this.canvas.height = canvas.height;
 		this.context = canvas.getContext('2d');
 		this.context.clearRect(0,0,px[0],px[1]);
+	},
+
+	'getAbsolutePos': function(rel_x,rel_y){
+		var x = this.canvas.width * rel_x;
+		var y = this.canvas.height * rel_y;
+		return [x,y];
+	},
+
+	'getRelativePos': function(abs_x,abs_y){
+		var rel_x = abs_x/this.canvas.width;
+		var rel_y = abs_y/this.canvas.height;
+		rel_x = rel_x.toFixed(6);
+		rel_y = rel_y.toFixed(6);
+		return [rel_x,rel_y];
 	}
 };
 
 var LoginModel = {
+	'_roomId':'',
 	'username':'',
-	'login':function(){
+	'loadRoomId': function(roomId){
+		this._roomId = roomId;
+		//display to textinput, and set it disabled 
+	},
+	'showJoinError': function(error_data){
 
-	}
+	},
+	'fadeOut':function(){
+
+	},
+	'showCreateError': function(){
+
+	},
 };
 
 var FriendModel = {
 
 };
 
+var getFormData = function(){
+	//get roomid, password, username
+}
+
 //main================================================
 $(document).ready(function(){
-	socketio.init('172.23.240.129');
+	socketio.init('localhost');
 	CanvasSocket.on();
 
 	//canvas
 	//CanvasModel.context = $('#mycanvas')[0].getContext('2d');
-	$('#mycanvas').bind('mousedown',LOCAL,$.proxy(CanvasController.downInCanvas,CanvasController));
-	$('#mycanvas').bind('mousemove',LOCAL,$.proxy(CanvasController.moveInCanvas,CanvasController));
-	$(document).bind('mouseup',LOCAL,$.proxy(CanvasController.mouseUp,CanvasController));
+	$('#mycanvas').bind('mousedown',LOCAL,$.proxy(Controller.downInCanvas,Controller));
+	$('#mycanvas').bind('mousemove',LOCAL,$.proxy(Controller.moveInCanvas,Controller));
+	$(document).bind('mouseup',LOCAL,$.proxy(Controller.mouseUp,Controller));
 
 	//eraser
-	$('#myeraser').bind('click',CanvasController.clickEraser);
+	//$('#myeraser').bind('click',Controller.clickEraser);
 
 	//clear button
-	$('#clear_btn').bind('click',CanvasController.clickClearBtn);
+	//$('#clear_btn').bind('click',Controller.clickClearBtn);
 
-	LoginSocket.on();
-	LoginSocket.emit('initcanvas',{'width':screen.availWidth,'height':screen.availHeight});
-	$('#loginform').submit(function(e){
-		LoginController.login(e);
-	});
+	//LoginSocket.on();
+	CanvasSocket.emit('initcanvas',{'width':screen.availWidth,'height':screen.availHeight});
+	// $('#loginform').submit(function(e){
+	// 	LoginController.login(e);
+	// });
+
+	
 
 
 });

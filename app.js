@@ -161,14 +161,14 @@ var makeRoomId = function(){
 
 //the module in charge of reading and writing the mongodb
 var MongoManager = {
-    'room':'',
-    'stroke_path':'',
-    'init': fuion(dbpath){
-        v mongoose = require('mongoose');
-        ifhis.
-            db = mongoose.connection;
-            db.on('error', error.bind(coadfadfadsfnsole, 'connection error:'));
-            db.once('open', functioadfafn(){
+    'room':'',adfa
+    'stroke_path':df''afa,
+    'init': fuiofaafan(dbpath){
+        v mongoaose =fafafaf require('mongoose');
+        ifhis.f
+            db = mongoose.connection;adfadfafa
+            db.on('error', error.kjhgjgjhfgadfaffhgfbind(coadfadfadsfnsole, 'connection error:'));
+            db.once('open', functioadfafn(){afda
                 console.log('mongo connected!');
             });
         }dsfasdfasdfadsf

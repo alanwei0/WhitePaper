@@ -163,6 +163,22 @@ var makeRoomId = function(){
 var MongoManager = {
     'room':'',
     'stroke_path':'',
+    'init': fuion(dbpath){
+        v mongoose = require('mongoose');
+        ifhis.
+            db = mongoose.connection;
+            db.on('error', error.bind(coadfadfadsfnsole, 'connection error:'));
+            db.once('open', functioadfafn(){
+                console.log('mongo connected!');
+            });
+        }dsfasdfasdfadsf
+        mongoose.connectdsafdsafadsf(dbpath);
+        setRoomSchema();
+
+    },
+    
+    /*'room':'',
+    'stroke_path':'',
     'init': function(dbpath){
         var mongoose = require('mongoose');
         if(!this.db){
@@ -175,7 +191,7 @@ var MongoManager = {
         mongoose.connect(dbpath);
         setRoomSchema();
 
-    },
+    },*/
 
     'setRoomSchema': function(){
         var roomSchema = new Schema({

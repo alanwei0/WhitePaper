@@ -87,6 +87,7 @@ var login = function(data){
     var password = data[1];
 };
 
+
 var ServerManager = {
     'io':{},
     'initSocketIo':function(server){
@@ -132,8 +133,23 @@ var ServerManager = {
             });
 
             socket.on('createRoom',function(data,callback){
+                var check_room = checkRoomId(data[0]);
+                if(check_room[0]){
+                    var roomId = check_room[1];
+                }else{
+                    callback(check_room);
+                }
+
+                var password = data[1];
+
+                var check_creator = checkUsername(data[2]);
+                if(check_creator[0]){
+                    var creator = check_creator[1];
+                }else{
+                    callback(check_creator);
+                }
+
                 Controller.createRoom(data);
-                //then if cache isn't full, save in, nor to database
             });
 
             socket.on('joinRoom',function(data,callback){
@@ -146,7 +162,28 @@ var ServerManager = {
 
     'emit': function(){
 
-    }
+    },
+
+    'joinRoom': function(roomname){
+
+    },
+
+    'leaveRoom':function(roomname){
+
+    },
+
+    'checkRoomId': function(roomId){
+        if(!roomId) return [0,'roomId is null'];
+        if(roomId.match(/^\d+$/)) return [0,'roomId is illegal'];
+        if(MongoManager.roomExist(roomId)) return [0,'room is existed'];
+        return [1,roomId];
+    },
+
+    'checkUsername': function(name){
+        if(!name) return [0,'name is null'];
+        if(name.length > 20 ) return [0,'name is too long'];
+        return name;
+    },
 
 
 };
@@ -178,21 +215,14 @@ var Controller = {
     *@desciption  create a new room
     *@param {String} roomId, the id of the new room
     *@param {String} roomPassword, the password of the new room
-    *@param {Socket} socket_with_username, socket with creator's nickname as socket.userName
+    *@param {Socket} creator, creator's nickname
     *@return null 
     */
-    'createRoom': function(roomId, roomPassword, socket_with_username){
-        socket_with_username.join(roomId);  //join in a room
-
-        var creator = socket_with_username.username;
+    'createRoom': function(room){
         if(!roomCacheIsFull){
-            room_cache.push([roomId,roomPassword,creator]);
-        }
-
-        var room = {
-            'roomId': roomId,
-            'roomPassword': roomPassword,
-            'creator': creator
+            room_cache.push(room);
+        }else{
+            this.newToCache(room);
         }
 
         MongoManager.addRoom(room);
@@ -208,10 +238,10 @@ var Controller = {
     *@desciption  come in to a room
     *@param {String} roomId, the id of the new room
     *@param {String} roomPassword, the password of the new room
-    *@param {Socket} socket_with_username, socket with creator's nickname as socket.userName
+    *@param {Socket} partner, partner's nickname
     *@return null 
     */
-    'comeInRoom': function(roomId, roomPassword, socket_with_username){
+    'comeInRoom': function(roomId, roomPassword, partner){
 
     },
 
@@ -226,44 +256,56 @@ var Controller = {
 
 //the module in charge of reading and writing the mongodb
 var MongoManager = {
-    'room':'',
-    'stroke_path':'',
-    'init': function(dbpath){
-        var mongoose = require('mongoose');
+    'mongo':null,
+    'db':null,
+    'new_room':{},
+    'new_stroke_path':{},
+    'rooms':{},
+    'strokepath':{},
+    'init': function(host, port, name , server_options, db_options){
         if(!this.db){
-            db = mongoose.connection;
-            db.on('error', console.error.bind(console, 'connection error:'));
-            db.once('open', function(){
-                console.log('mongo connected!');
+            mongodb = require("mongodb");
+            var mongoserver = new mongodb.Server(host, port, server_options);
+            this.db = new mongodb.Db(name, mongoserver, db_options);
+            this.db.open(function(err,db){
+                db.on("close", function(error){
+                    console.log("Connection to the database was closed!");
+                });
             });
-        }
-        mongoose.connect(dbpath);
-        setRoomSchema();
-
+            this.rooms = this.db.collection('rooms');
+            this.strokepath = this.db.collection('strokepath');
+        }     
     },
 
     'setRoomSchema': function(){
-        var roomSchema = new Schema({
-            'roomId': String,
-            'password': String,
-            'creator': String,
-            'parter': String,
-            'createTime':{type: Date, default: Date.now }
-        });
-        this.room = mongoose.model('Room',roomSchema);
+
     },
 
     'addRoom': function(room){
-        
-        this.room.
-    },
-
-    'setStrokePathSchema': function(){
-        var strokePathSchema = new Schema({
+        this.new_room._id = room[0];
+        this.new_room.password = room[1];
+        this.new_room.creator = room[2];
+        this.new_room.createTime = new Date();
+        this.rooms.insert(new_room, {'safe':true}, function(err, records){
+            if(err){
+                console.log(err);
+            }else{
+                console.log("Record added as "+records[0]._id);
+            }  
         });
     },
 
-    'addRoom': function(room){
+    'roomExist': function(roomId){
+        var cursor = this.rooms.findOne({'_id': roomId}, function(err,doc){
+            
+        });
+
+    },
+
+    'roomExistResult': function(err, doc){
 
     },
 };
+
+//init the database
+MongoManager.init('172.0.0.1', 27017, 'whitepaper', {}, {'native_parser':true, 'strict':true});

@@ -159,65 +159,7 @@ var makeRoomId = function(){
     return result;
 };
 
-//the module in charge of reading and writing the mongodb
-var MongoManager = {
-    'room':'',adfa
-    'stroke_path':df''afa,
-    'init': fuiofaafan(dbpath){
-        v mongoaose =fafafaf require('mongoose');
-        ifhis.f
-            db = mongoose.connection;adfadfafa
-            db.on('error', error.kjhgjgjhfgadfaffhgfbind(coadfadfadsfnsole, 'connection error:'));
-            db.once('open', functioadfafn(){afda
-                console.log('mongo connected!');
-            });
-        }dsfasdfasdfadsf
-        mongoose.connectdsafdsafadsf(dbpath);
-        setRoomSchema();
 
-    },
-    
-    /*'room':'',
-    'stroke_path':'',
-    'init': function(dbpath){
-        var mongoose = require('mongoose');
-        if(!this.db){
-            db = mongoose.connection;
-            db.on('error', console.error.bind(console, 'connection error:'));
-            db.once('open', function(){
-                console.log('mongo connected!');
-            });
-        }
-        mongoose.connect(dbpath);
-        setRoomSchema();
-
-    },*/
-
-    'setRoomSchema': function(){
-        var roomSchema = new Schema({
-            'roomId': String,
-            'password': String,
-            'creator': String,
-            'parter': String,
-            'createTime':{type: Date, default: Date.now }
-        });
-        this.room = mongoose.model('Room',roomSchema);
-    },
-
-    'addRoom': function(room){
-        
-        this.room.
-    },
-
-    'setStrokePathSchema': function(){
-        var strokePathSchema = new Schema({
-        });
-    },
-
-    'addRoom': function(room){
-
-    },
-};
 
 
 //the module in charge of manage room and canvas
@@ -278,6 +220,50 @@ var Controller = {
     },
 
     'backToRoom': function(){
+
+    },
+};
+
+//the module in charge of reading and writing the mongodb
+var MongoManager = {
+    'room':'',
+    'stroke_path':'',
+    'init': function(dbpath){
+        var mongoose = require('mongoose');
+        if(!this.db){
+            db = mongoose.connection;
+            db.on('error', console.error.bind(console, 'connection error:'));
+            db.once('open', function(){
+                console.log('mongo connected!');
+            });
+        }
+        mongoose.connect(dbpath);
+        setRoomSchema();
+
+    },
+
+    'setRoomSchema': function(){
+        var roomSchema = new Schema({
+            'roomId': String,
+            'password': String,
+            'creator': String,
+            'parter': String,
+            'createTime':{type: Date, default: Date.now }
+        });
+        this.room = mongoose.model('Room',roomSchema);
+    },
+
+    'addRoom': function(room){
+        
+        this.room.
+    },
+
+    'setStrokePathSchema': function(){
+        var strokePathSchema = new Schema({
+        });
+    },
+
+    'addRoom': function(room){
 
     },
 };

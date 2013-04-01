@@ -174,7 +174,9 @@ var Controller = {
     })(),
     /**
     *@desciption  create a new room
+    *fuck============================================
     *@param {String} roomId, the id of the new room
+    *fuck ==================================================
     *@param {String} roomPassword, the password of the new room
     *@param {Socket} socket_with_username, socket with creator's nickname as socket.userName
     *@return null 

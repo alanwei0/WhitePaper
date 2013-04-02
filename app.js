@@ -114,25 +114,11 @@ var ServerManager = {
                 socket.emit('initcanvas_res',res);
             });
 
-
-            socket.on('checkroomname_req', function(roomName){
-                Controller.checkRoomName(roomName);
-            });
-
-            socket.on('createroom_req',function(data){
-                
-            });
-
-            socket.on('leaveroom_req',function(data){
-
-            });
-
-            socket.on('loadRoomId',function(data,callback){
+            socket.on('loadRoomId',function(data){
                 var res_data = makeRoomId();
-                callback(res_data);
             });
 
-            socket.on('createRoom',function(data,callback){
+            socket.on('createRoom',function(data){
                 var check_room = checkRoomId(data[0]);
                 if(check_room[0]){
                     var roomId = check_room[1];

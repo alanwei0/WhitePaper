@@ -10,12 +10,28 @@
 </head>
 <body>
     <div id='canvas_wrap'>
-        <div id='wrap_inner'>
-        	<canvas id="mycanvas"></canvas>
-          	<!-- <div id="myeraser"></div>
-          	<div id='clear_btn'></div>
-          	<div id='friend_list'></div> -->
-      </div>
+        <div class='inner'>
+            
+            <div class='partners_panel'>
+                <ol id='partners_list'>
+                    <li class='Yammywei'><span>Yammywei</span></li>
+                    <li class='Robin'><span>Robin</span></li> 
+                </ol>
+            </div>
+
+            <div class='tool_panel'>
+                <div class='tool' id='pen'><img src='/images/stroke.png' height='30' width='30'><div><span>Pen</span></div></div>
+                <div class='tool' id='setting'><img src='/images/settings.png' height='30' width='30'><div><span>Settings</span></div></div>
+                <div class='tool' id='erase'><img src='/images/erase.png' height='30' width='30'><div><span>Erase</span></div></div>
+                <div class='tool' id='newcanvas'><img src='/images/new.png' height='30' width='30'><div><span>New Canvas</span></div></div>
+                <div class='tool' id='save'><img src='/images/save.png' height='30' width='30'><div><span>Save</span></div></div>
+                <div class='tool' id='logout'><img src='/images/logout.png' height='30' width='30'><div><span>Logout</span></div></div>
+            </div>
+            <div class='canvas_eraser'>
+                <canvas id="mycanvas" height='520' width='900'></canvas>
+            </div>
+            <!-- <div class='infomation'></div> -->
+        </div>
     </div>
   	<div id='login_mask'>
         <div id='aside'>
@@ -25,24 +41,30 @@
             </div>
             <div class='login_panel form_field'>
                 <div class="form_item room_id"> 
-                    <label class='form_label' for='roomid'>Room</label>
-                    <input class='form_input' type='text'>
+                    <label class='form_label' for='roomId'>RoomId</label>
+                    <input class='form_input' id='roomId' type='text'>
+                    <div class='from_tip form_error'><span></span></div>
+                    <div class='form_tip form_req'><span></span></div>
                 </div>
                 <div class='form_item password'>
-                    <label class='form_label' for='password'>Key</label>
-                    <input class='form_input' type='password'>
+                    <label class='form_label' for='password'>Password</label>
+                    <input class='form_input' id = 'password' type='password'>
+                    <div class='from_tip form_error'><span></span></div>
+                    <div class='form_tip form_req'><span>&gt;8</span></div>
                 </div>
                 <div class='form_item user_name'>
-                    <label class='form_label' for='username'>User</label>
-                    <input class='form_input' type='text'>
+                    <label class='form_label' for='username'>UserName</label>
+                    <input class='form_input' id='username' type='text'>
+                    <div class='from_tip form_error'><span></span></div>
+                    <div class='form_tip form_req'><span>&lt;10</span></div>
                 </div>
                 <div class='submit_item'>
-                    <div class='btn' id='login_btn'><span class='shit'>Login</span></div>
-                    <div class='btn' id='cancel_btn'><span class='shit'>Cancel</span></div>
+                    <div class='btn' id='login_btn'><span class='a'>GO</span></div>
+                    <!-- <div class='btn' id='cancel_btn'><span class='shit'>Cancel</span></div> -->
                 </div> 
             </div>
         </div>
-  		<div id='main_side'>
+  		<div id='main_side' tabIndex='-1'>
          <div class='logo_wrap '><span id='logo'>WhitePaper</span></div>
             <div class='intro_wrap'>
                 <div class='intro_inner'>

@@ -1,0 +1,29 @@
+<!doctype html>
+<html>
+<head>
+	<title><%= title %></title>
+	<script src="/socket.io/socket.io.js"></script>
+  <script>
+    var socket = io.connect('http://localhost');
+    
+    //load room id 
+    socket.emit('join_room_req',['17747663713962','123456789','robin']);
+
+    socket.on('join_room_res',function(data){
+      console.log(data);
+    });
+
+    socket.on('partner_into_room_req' , function(data){
+      console.log('partner_into_room_req '+data);
+    });
+
+    socket.on('partner_disconnect' , function(data){
+      console.log(data);
+    });
+    
+
+  </script>
+</head>
+<body>
+</body>
+</html>

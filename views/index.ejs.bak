@@ -1,16 +1,76 @@
-<!DOCTYPE html>
+<!doctype html>
 <html>
-  <head>
-    <title><%= title %></title>
-    <script src="/socket.io/socket.io.js"></script>
-    <script src="/javascripts/index_process.js"></script>
-    <script src="/javascripts/canvas.js"></script>
-    <link rel='stylesheet' href='/stylesheets/style.css' />
-  </head>
-  <body>
-    <canvas id="myCanvas"></canvas> 
-    <textarea id="inputarea" rows="1" cols="5"></textarea>
-    <textarea id="outputarea" rows="1" cols="5"></textarea>
-    
-  </body>
+<head>
+	<title><%= title %></title>
+	<link rel="stylesheet" type="text/css" href="/stylesheets/reset.css">
+	<link rel="stylesheet" type="text/css" href="/stylesheets/canvas.css">
+	   <script src="/socket.io/socket.io.js"></script>
+	   <script src="/javascripts/jquery-1.9.1.min.js"></script>
+	   <script src="/javascripts/canvas.js"></script>
+</head>
+<body>
+    <div id='canvas_wrap'>
+        <div id='wrap_inner'>
+        	<canvas id="mycanvas"></canvas>
+          	<!-- <div id="myeraser"></div>
+          	<div id='clear_btn'></div>
+          	<div id='friend_list'></div> -->
+      </div>
+    </div>
+  	<div id='login_mask'>
+        <div id='aside'>
+            <div class='login_panel selection'>
+                <div class='selection_wrap create'><span class='selection_item' id="create_btn">Create</span></div>
+                <div class='selection_wrap join'><span class='selection_item' id='join_btn'>Join</span></div>
+            </div>
+            <div class='login_panel form_field'>
+                <div class="form_item room_id"> 
+                    <label class='form_label' for='roomid'>Room</label>
+                    <input class='form_input' type='text'>
+                </div>
+                <div class='form_item password'>
+                    <label class='form_label' for='password'>Key</label>
+                    <input class='form_input' type='password'>
+                </div>
+                <div class='form_item user_name'>
+                    <label class='form_label' for='username'>User</label>
+                    <input class='form_input' type='text'>
+                </div>
+                <div class='submit_item'>
+                    <div class='btn' id='login_btn'><span class='shit'>Login</span></div>
+                    <div class='btn' id='cancel_btn'><span class='shit'>Cancel</span></div>
+                </div> 
+            </div>
+        </div>
+  		<div id='main_side'>
+         <div class='logo_wrap '><span id='logo'>WhitePaper</span></div>
+            <div class='intro_wrap'>
+                <div class='intro_inner'>
+                    <span id='intro'>Welcome to WhitePaper! By Clicking the "Create" button in your right, You can create a new room in which you can draw something to your friend in a piece of white paper. Don't forget to tell your friend the id and password of your room! Wish you enjoying it!
+                    </span>
+                </div>
+            </div>
+        </div>
+
+  			<!-- <form id="loginform">
+                <div class="form_item room_id"> 
+                    <label for='roomid'>Room Id</label>
+                    <input name='roomid' type='text'>
+                </div>
+                <div class='form_item password'>
+                    <label for='password'>Password</label>
+                    <input name='password' type='password'>
+                </div>
+                <div class='form_item nick_name'>
+                    <label for='nickname'>Nick Name</label>
+                    <input name='nickname' type='text'>
+                </div>
+  				
+  				
+  				<input type='submit' name='login_btn' value='login'>
+  			</form> -->
+  	</div>
+  	
+
+</body>
 </html>

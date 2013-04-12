@@ -10,6 +10,7 @@ src: url('hand-of-sean.ttf');
 
 html{
 	height: 100%;
+	cursor: default;
 }
 
 body{
@@ -20,40 +21,7 @@ body{
 	height: 100%;
 }
 
-canvas{
-	background-color: rgb(238,238,238);
-	display: inline;
-
-
-}
-
-#myeraser{
-	background-color: rgb(0,190,0);
-	position: absolute;
-	left: 270px;
-	top:15px;
-	height: 25px;
-	width: 25px;
-}
-
-#clear_btn{
-	background-color: rgb(200,190,0);
-	position: absolute;
-	left: 305px;
-	top:15px;
-	height: 25px;
-	width: 25px;
-}
-
-#friend_list{
-	background-color: rgb(100,190,50);
-	position: absolute;
-	left: 150px;
-	top:50px;
-	height: 560px;
-	width: 100px;
-}
-
+/*login*/
 #login_mask{
 	height: inherit;
 	background-color:rgb(145,210,165);
@@ -112,13 +80,6 @@ canvas{
 	background-color: rgb(145,210,165);
 }
 
-#canvas_wrap{
-	position: absolute;
-	width: 100%;
-	top: 10%;
-	text-align: center;
-	z-index: -1;
-}
 
 .selection_wrap{
 	float: left;
@@ -128,15 +89,11 @@ canvas{
 	text-align: center;
 	cursor: pointer;
 	color: rgb(90,20,20);
-}
-
-.selection_wrap:hover{
 	color: #fff;
 }
 
 .create{
 	background-color: rgb(145,210,165);
-
 }
 
 
@@ -149,10 +106,8 @@ canvas{
 	font-size: 5em;
 }
 
-
-
-
 .form_item{
+	position: relative;
 	height: 3em;
 	line-height: 3em;
 	margin: 0.75em 0em;
@@ -165,7 +120,9 @@ canvas{
 	height: inherit;
 	padding: 0 0 0 0.5em ;
 	color: #fff;
+	cursor: text;
 }
+
 
 .form_input{
 	float: left;
@@ -176,6 +133,20 @@ canvas{
 	background-color: rgb(45,150,125);
 	padding: 0 0 0 0.5em;
 	color: #fff;
+}
+
+.form_tip{
+	position: absolute;
+	right: 0;
+	font-size: 2em;
+}
+
+.form_error{
+	color: rgb(20,30,80);
+}
+
+.form_req{
+	color: rgb(145,210,165);
 }
 
 .submit_item{
@@ -196,8 +167,8 @@ canvas{
 }
 
 #login_btn{
-	height: 5.75em;
-	line-height: 5.75em;
+	height: 10.5em;
+	line-height: 10.5em;
 	margin: 0.75em 0;
 }
 
@@ -207,10 +178,112 @@ canvas{
 	margin: 0 0 0.75em 0;
 }
 
-.shit{
-	font-size: 3em;
+.a{
+	font-size: 5em;
 }
 
 .form_field{
-	opacity: 0;
+	display: none;
+}
+
+.form_item{
+	cursor:text;
+}
+
+/*canvas*/
+#canvas_wrap{
+	position: absolute;
+	width: 100%;
+	top: 10%;
+	text-align: center;
+	display: none;
+}
+
+.inner{
+	position: relative;
+	display: inline-block;
+	height: 520px;
+	width: 900px;
+}
+
+.canvas_eraser{
+	display: inline-block;
+	height: 520px;
+	width: 900px;
+	outline: 1px dashed red;
+}
+
+canvas{
+	background-color: #fff;
+}
+
+/*partner*/
+.partners_panel{
+	float: left;
+	width: 12em;
+	margin: 0 0 0 -12em;
+}
+
+#partners_list{
+	list-style: none;
+}
+
+li{
+	height: 4em;
+	display: block;
+	line-height: 4em;
+	text-align: center;
+	margin: 1em 0;
+	background-color: rgb(45,150,125);
+	color: #fff;
+}
+
+li span{
+	font-size: 2em;
+	font-family: myFont, 'Microsoft YaHei', Arial, sans-serif;
+}
+
+li:first-child{
+	margin-top:0;
+}
+
+/*tools*/
+.tool_panel{
+	position: absolute;
+	left: 910px;
+	height: 120px;
+	width: 10em;
+
+}
+
+.tool{
+	position: relative;
+	margin: 1em 0;
+	height: 3em;
+	line-height: 3em;
+	text-align: left;
+}
+
+.tool:first-child{
+	margin-top: 0;
+}
+
+.tool div{
+	position: absolute;
+	left: 0;
+	top: 0;
+	display: none;
+	color: #fff;
+}
+
+.tool span{
+	font-size: 2em;
+}
+
+.era{
+	position: fixed;
+	height: 30px;
+	width: 30px;
+	border-radius: 30px;
+	border:3px solid #ccc;
 }

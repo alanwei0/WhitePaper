@@ -97,11 +97,18 @@ Socket.prototype.uploadCanvas = function(data){
 
 
 
-//control module==============================
+//control module=============================================
+//===========================================================
+//===========================================================
+//===========================================================
+
+
+
+
 function Controller(){
 	this.canPaint = false;
-	this.MOVE_IN_CANVAS = 1;
 	this.DOWN_IN_CANVAS = 0;
+	this.MOVE_IN_CANVAS = 1;
 	this.NEW_CANVAS = 2;
 	this.ERASE = 3;
 	this.DRAW = 4;
@@ -116,6 +123,7 @@ Controller.prototype.init = function(){
 	//this.canvasModel = new CanvasModel();
 };
 
+// all functions' param 'e' is a {array}, which e[0] is 'from'(ex:LOCAL, SERVER), e[1] is 'body'(data) 
 Controller.prototype.downInCanvas = function(e){
 	var self = this;
 	if( e[0] === LOCAL){
@@ -190,7 +198,10 @@ Controller.prototype.changeStroke = function(e){
 	}
 };
 
-//from+type+body
+/**
+*@description this function get canvas data from SERVER and assign them to the proper handler, only SocketIO can call this function
+*@param {String} data is a String whose construction is 'from&type&body', body is real data   
+*/
 Controller.prototype.chooseAction = function(data){
 	var self = this;
 	var data_arr = self.splitData(data);
@@ -209,7 +220,11 @@ Controller.prototype.chooseAction = function(data){
 
 };
 
-//from+type+body
+/**
+*@description split SERVER data , just called in chooseAction function
+*@param {String} data is a String whose construction is 'from&type&body', body is real data
+*@return {Array} [from , type , body]
+*/
 Controller.prototype.splitData = function(data){
 	if(!data) return null;
 	var result = data.toString().match(/^(1)&(\d)&(.*)$/);
@@ -219,19 +234,17 @@ Controller.prototype.splitData = function(data){
 	}
 };
 
-//from+type+body
+//from+type+body ==========================================this function should move to SocketIO
 Controller.prototype.packData = function(from , type , body){
 	return from + '&' + type + '&' + body;
 };
+
 
 Controller.prototype.getCanvas = function(){
 	var canvas_data = CanvasModel.getCanvas();
 	this.socketIO.uploadCanvas(canvas_data);
 };
 
-// Controller.prototype.setCanvas = function(canvas){
-// 	this.canvasModel.setCanvas(canvas);
-// };
 
 Controller.prototype.loadRoomId = function(){
 	if(arguments.length === 0){
@@ -242,9 +255,11 @@ Controller.prototype.loadRoomId = function(){
 	
 };
 
+
 Controller.prototype.getRoomId = function(){
 	return this.loginModel.getRoomId();
 };
+
 
 Controller.prototype.createRoom = function(formData){
 	var valid_data = this.loginModel.createRoom(formData);
@@ -252,6 +267,7 @@ Controller.prototype.createRoom = function(formData){
 		this.socketIO.emit('create_room_req' , formData);
 	}
 };
+
 
 Controller.prototype.createRoomRes = function(res){
 	var success = res[0];
@@ -266,12 +282,14 @@ Controller.prototype.createRoomRes = function(res){
 	}
 };
 
+
 Controller.prototype.joinRoom = function(formData){
 	var valid_data = this.loginModel.joinRoom(formData);
 	if(valid_data){
 		this.socketIO.emit('join_room_req' , formData);
 	}
 };
+
 
 Controller.prototype.joinRoomRes = function(res){
 	var success = res[0];
@@ -286,9 +304,11 @@ Controller.prototype.joinRoomRes = function(res){
 	}
 };
 
+
 Controller.prototype.partnerDisconnect = function(res){
 	this.roomModel.partnerDisconnect(res);
 };
+
 
 Controller.prototype.partnerIntoRoom = function(res){
 	this.roomModel.partnerIn(res);
@@ -296,7 +316,13 @@ Controller.prototype.partnerIntoRoom = function(res){
 
 
 
-//---------------------------------------------------
+//CanvasModel    ===============================================
+//==============================================================
+//==============================================================
+//==============================================================
+
+
+
 
 function CanvasModel(){
 	this.context;
@@ -321,26 +347,9 @@ function CanvasModel(){
 		'strokeStyle':'#fff' ,
 		'lineWidth':'30',
 	};
-
-	// this.nowState = {
-	// 	'strokeStyle':'#000' ,
-	// 	'lineWidth':'3',
-	// };
 }
 
-// CanvasModel.prototype.setEraseState = function(){
-// 	this.nowState = this.eraseState;
-// };
 
-// CanvasModel.prototype.setDrawState = function(from){
-// 	if(from === LOCAL){
-// 		this.nowState.strokeStyle = this._local_pre_data.strokeStyle;
-// 		this.nowState.lineWidth = this._local_pre_data.lineWidth;
-// 	}else{
-// 		this.nowState.strokeStyle = this._server_pre_data.strokeStyle;
-// 		this.nowState.lineWidth = this._server_pre_data.lineWidth;
-// 	}
-// };
 CanvasModel.prototype.setType = function(from , type){
 	if(from === LOCAL){
 		this._local_pre_data.type = type;
@@ -349,11 +358,13 @@ CanvasModel.prototype.setType = function(from , type){
 	}
 };
 
+
 CanvasModel.prototype.init = function(canvas){
 	this.canvas = canvas;
 	this.context = this.canvas.getContext('2d');
 	toolAnimation.setActive('pen');
 };
+
 
 CanvasModel.prototype.preDraw = function(e){
 	var from = parseInt(e[0]);
@@ -372,6 +383,7 @@ CanvasModel.prototype.preDraw = function(e){
 	}
 
 };
+
 
 CanvasModel.prototype.draw = function(e){
 	var now_x;
@@ -410,6 +422,7 @@ CanvasModel.prototype.draw = function(e){
 	}
 };
 
+
 CanvasModel.prototype.stroke = function(from , type , begin , end){//type = draw or erase
 	this.restoreStroke(from , type);
 	this.context.beginPath();
@@ -418,6 +431,7 @@ CanvasModel.prototype.stroke = function(from , type , begin , end){//type = draw
 	this.context.stroke();
 
 };
+
 
 CanvasModel.prototype.saveStroke = function(from , strokeStyle , lineWidth){
 	if(from === LOCAL){
@@ -428,6 +442,7 @@ CanvasModel.prototype.saveStroke = function(from , strokeStyle , lineWidth){
 		this.context.lineWidth = parseInt(this._server_pre_data.lineWidth);
 	}
 };
+
 
 CanvasModel.prototype.restoreStroke = function(from , type){
 	if(from === LOCAL && type === 'draw'){
@@ -442,10 +457,12 @@ CanvasModel.prototype.restoreStroke = function(from , type){
 	}
 };
 
+
 CanvasModel.prototype.getCanvas = function(){
 	var dataURL = $('#mycanvas').get(0).toDataURL();
 	return dataURL;
 };
+
 
 CanvasModel.prototype.recoverCanvas = function(url){
 	var img = $('<img></img>');
@@ -455,9 +472,11 @@ CanvasModel.prototype.recoverCanvas = function(url){
 	});
 };
 
+
 CanvasModel.prototype.newCanvas = function(){
 	this.context.clearRect(0,0,900,520);
 };
+
 
 CanvasModel.prototype.changeStroke = function(e){
 	var from = e[0];
@@ -471,22 +490,32 @@ CanvasModel.prototype.changeStroke = function(e){
 	return e.pop();
 };
 
+
+
 //LoginModel
-//==================================================
+//========================================================================
+//========================================================================
+//========================================================================
+
+
+
 function LoginModel(){
 	this.roomId;
 	this.password;
 	this.username;
 }
 
+
 LoginModel.prototype.loadRoomId = function(roomId){
 	this.roomId = roomId;
 	$('#roomId').get(0).value = this.roomId;
 };
 
+
 LoginModel.prototype.getRoomId = function(){
 	return this.roomId;
 };
+
 
 LoginModel.prototype.createRoom = function(formData){ 
 	var roomId = formData[0];
@@ -509,6 +538,7 @@ LoginModel.prototype.createRoom = function(formData){
 
 };
 
+
 LoginModel.prototype.joinRoom = function(formData){
 	var roomId = formData[0];
 	var password = formData[1];
@@ -529,6 +559,7 @@ LoginModel.prototype.joinRoom = function(formData){
 	return true;
 };
 
+
 LoginModel.prototype.checkRoomId = function(create , roomId){
 	if(create){
 		if(roomId !== this.roomId) return [0 , 'your bitch'];
@@ -539,11 +570,13 @@ LoginModel.prototype.checkRoomId = function(create , roomId){
     return [1];
 };
 
+
 LoginModel.prototype.checkPassword = function(password){
 	if(!password) return  [0, 'required'];
     if(password.length < 8) return [0 , 'too short'];
     return [1];
 };
+
 
 LoginModel.prototype.checkUsername = function(username){
 	if(!name) return [0,'required'];
@@ -551,12 +584,22 @@ LoginModel.prototype.checkUsername = function(username){
     return [1];
 };
 
+
+
+
 //RoomModel
-//==============================================
+//=====================================================================
+//=====================================================================
+//=====================================================================
+
+
+
+
 function RoomModel(){
 	this.roomId;
 	this.users = [];
 }
+
 
 RoomModel.prototype.comeIn = function(data){
 	var roomId = data[1][0];
@@ -567,6 +610,7 @@ RoomModel.prototype.comeIn = function(data){
 		this.users.push(user);
 	}
 };
+
 
 RoomModel.prototype.partnerIn = function(data){
 	var partner = data[1][1];
@@ -579,13 +623,16 @@ RoomModel.prototype.partnerIn = function(data){
 	
 };
 
+
 RoomModel.prototype.partnerLeave = function(partner){
 	//show Animation
 };
 
+
 RoomModel.prototype.partnerDisconnect = function(parnter){
 	//show Animation
 };
+
 
 RoomModel.prototype.isPartnerIn = function(parnter){
 	var i;
@@ -597,7 +644,14 @@ RoomModel.prototype.isPartnerIn = function(parnter){
 	return false;
 };
 
-//main================================================
+
+
+//  main    ============================================================
+//======================================================================
+//======================================================================
+//======================================================================
+
+
 
 var controller = new Controller();
 controller.init();
@@ -605,7 +659,9 @@ controller.loadRoomId();
 
 $(document).ready(function(){
 
-	
+	/**
+	*bind event listener to canvas, show animation and emit to controller
+	*/
 	(function(){
 		var canvas_eraser = $('.canvas_eraser');
 		var begin_erase = false;
@@ -616,16 +672,16 @@ $(document).ready(function(){
 			eraser.attr('class' , 'era');
 			eraser.css('display' , 'none');
 			eraser.appendTo('.canvas_eraser');
-			controller.erase([LOCAL]);
+			controller.erase([LOCAL]); //-----------------------call erase function
 		});
 
 		$('#pen').click(function(){
-			controller.draw([LOCAL]);
+			controller.draw([LOCAL]);//--------------------------call draw function 
 		});
 
 
 		canvas_eraser.mousedown(function(e){
-			controller.downInCanvas([LOCAL,e]);
+			controller.downInCanvas([LOCAL,e]);//-------------- call downInCanvas function
 		});
 
 		canvas_eraser.mousemove(function(e){
@@ -639,19 +695,21 @@ $(document).ready(function(){
 					eraser.css('display' , 'none');
 				}
 			}else{
-				controller.moveInCanvas([LOCAL,e]);
+				controller.moveInCanvas([LOCAL,e]);//---------call moveInCanvas function
 			}
 			
 		});
 
 
 		$(document).mouseup(function(e){
-			controller.mouseUp([LOCAL,e]);
+			controller.mouseUp([LOCAL,e]);//-------------------call mouseup function
 		});
 
 	})();
 
-	
+	/**
+	*event, transform of 'create' and 'join' button
+	*/
 	$('.selection_wrap').mouseenter(function(e){
 		var t = e.currentTarget;
 		var submit = $('.btn');
@@ -664,7 +722,7 @@ $(document).ready(function(){
 			$('.room_id > .form_label').fadeOut(100);
 			submit.bind('click' , function(){
 				console.log('create');
-				controller.createRoom(getFormData());
+				controller.createRoom(getFormData());//------------call createRoom functin
 				//showCanvasAnimation();
 			});
 		}else{
@@ -674,13 +732,15 @@ $(document).ready(function(){
 			roomId_area.style.color = '#fff';
 			submit.bind('click' , function(){
 				console.log('join');
-				controller.joinRoom(getFormData());
+				controller.joinRoom(getFormData());//--------------call joinRoom function
 			});
 		}
 		$('.form_field').fadeIn(150);
 	});
 
-
+	/**
+	* form item animation
+	*/
 	(function(){
 		var password_focused = false;
 		var username_focused = false;
@@ -771,18 +831,32 @@ $(document).ready(function(){
 
 
 	$('#newcanvas').click(function(){
-		controller.newCanvas([LOCAL]);
+		controller.newCanvas([LOCAL]);//------------------------call nowCanvas function
 	});
 
 	toolAnimation.init();
-
-
-
-
 });
 
+
+
+
+//Animations ==========================================================
+//=====================================================================
+//=====================================================================
+//=====================================================================
+
+
+
+/**
+*@desciption class in charge of the tool-bar animation
+*
+*/
 var toolAnimation = {
-	'active':'pen',
+	'active':'pen',   // when you click some tool, it will be active, and attr 'active' points to the active elem
+
+	/**
+	*@description  bind event listener(animation) to tools 
+	*/
 	'init': function(){
 		var tool = $('.tool');
 		tool.click(function(e){
@@ -815,11 +889,19 @@ var toolAnimation = {
 		});
 	},
 
+	/**
+	*@description set some tool(element) unactive, remember that don't call this function(and setActive()) for 'pen' and 'erase', because they can animate autoly 
+	*@param {String} id is the 'id' attr of your selected tool, ex:'logout', 'newcanvas', 'save', 
+	*/
 	'setUnactive':function(id){
 		this.active = '';
 		$('#' + id).mouseleave();
 	},
 
+	/**
+	*@description set some tool(element) active
+	*@param {String} id is the 'id' attr of your selected tool, ex:'logout', 'newcanvas', 'save'
+	*/
 	'setActive':function(id){
 		this.active = id;
 		var elem = $('#' + id).get(0);
@@ -831,7 +913,10 @@ var toolAnimation = {
 	},
 };
 
-
+/**
+*@description get form data , include roomId, password, uername
+*@return {Array} [roomId , password , username]
+*/
 var getFormData = function(){
 	var roomId = $('#roomId').get(0).value;
 	var password = $('#password').get(0).value;
@@ -841,6 +926,9 @@ var getFormData = function(){
 };
 
 
+/**
+*@description show Canvas panel and hide login panel when you login successfully
+*/
 var showCanvasAnimation = function(){
 	var loginPanel = $('#login_mask');
 	var canvasPanel = $('#canvas_wrap');
@@ -848,6 +936,9 @@ var showCanvasAnimation = function(){
 	canvasPanel.fadeIn(200);
 };
 
+/**
+*@description converse function of upper one  
+*/
 var showLoginPanelAnimation = function(){
 	var loginPanel = $('#login_mask');
 	var canvasPanel = $('#canvas_wrap');
@@ -855,20 +946,29 @@ var showLoginPanelAnimation = function(){
 	loginPanel.fadeIn(200);
 };
 
+
+
 var showFormError = function(formItem , error){
 
 };
 
-//partner's name is the id of 'li'
+
+/**
+*@description add partner's name to list 
+*@param {String} partner is the name of partner
+*/
 var addPartnerAnimation = function(partner){
 	var elem = $('<li></li>');
-	elem.attr('class' , partner);
+	elem.attr('class' , partner); //partner's name is the id of 'li'
 	elem.append('<span>'+ partner + '</span>');
 	elem.css('display' , 'none');
 	elem.appendTo('#partners_list');
 	elem.fadeIn('slow');
 };
 
+/**
+*@description converse function of upper one  
+*/
 var removePartnerAnimation = function(partner){
 	var elem = '.' + partner;
 	var li = $(elem);
@@ -878,6 +978,12 @@ var removePartnerAnimation = function(partner){
 	
 };
 
+/**
+*@desciption check if mouse is out of canvas
+*@param {int} x is x-coord of mouse
+*@param {int} y is y-corrd of mouse
+*@return {boolean}
+*/
 var mouseOutOfCanvas = function(x , y){
 	var canvas = $('.canvas_eraser');
 	var coord = canvas.offset();

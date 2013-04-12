@@ -42,7 +42,7 @@ Socket.prototype.on = function(){
 	this._socket.on('canvas_res' , function(res){
 		// this.reqNumber++;
 		// if(this.reqNumber > 5000) self.controller.getCanvas();
-		console.log('get canvas_res');
+		var res = [SERVER , this.splitData(res)];
 		self.controller.chooseAction(res);
 	});
 
@@ -73,7 +73,7 @@ Socket.prototype.on = function(){
 
 };
 
-Socket.prototype.emit = function(e,data){
+Socket.prototype.emit = function(e , data){
 	this._socket.emit(e , data);
 };
 
@@ -93,6 +93,39 @@ Socket.prototype.uploadCanvas = function(data){
 		
 	};
 	upload();
+};
+
+/**
+*@description split SERVER data 
+*@param {String} data is a String whose construction is 'type&body', body is real data
+*@return {Array} [type , body]
+*/
+Socket.prototype.splitData = function(data){
+	if(!data) return null;
+	var result = data.toString().match(/^(\d)&(.*)$/);
+	if(result){
+		var type = result[1];
+		var data = result[2].toString().split('#');
+		return [type , data];
+	}
+};
+
+
+Socket.prototype.emitCanvasReq = function(type , data){
+	var req_data = this.packData(type , data);
+	this._socket.emit('canvas_req' , req_data);
+};
+
+/**
+*@description package local data
+*@param {Int} type = LOCAL or SERVER
+*@param {Array} data
+*@return {String} type + & + data
+*/
+Socket.prototype.packData = function(type , data){
+	if(data && data.length < 1) return type;
+	data = data.join('#');
+	return type + '&' + data;
 };
 
 
@@ -129,8 +162,7 @@ Controller.prototype.downInCanvas = function(e){
 	if( e[0] === LOCAL){
 		self.canPaint = true;
 		var res = self.canvasModel.preDraw(e);
-		var result = self.packData(SERVER , self.DOWN_IN_CANVAS , res);
-		self.socketIO.emit('canvas_req' , result);
+		self.socketIO.emitCanvasReq(self.DOWN_IN_CANVAS , res);
 	}else{
 		self.canvasModel.preDraw(e);
 	}
@@ -141,8 +173,7 @@ Controller.prototype.moveInCanvas = function(e){
 	if(e[0] === LOCAL){
 		if(!self.canPaint) return null;
 		var res = self.canvasModel.draw(e);
-		var result = self.packData(SERVER , self.MOVE_IN_CANVAS , res);
-		self.socketIO.emit('canvas_req' , result);
+		self.socketIO.emitCanvasReq(self.MOVE_IN_CANVAS , res);
 	}else{
 		self.canvasModel.draw(e);
 	}
@@ -154,8 +185,7 @@ Controller.prototype.erase = function(e){
 	var self = this;
 	if(e[0] === LOCAL){
 		self.canvasModel.setType(LOCAL , 'erase');
-		var result = self.packData(SERVER , self.ERASE , '');
-		self.socketIO.emit('canvas_req' , result);
+		self.socketIO.emitCanvasReq(self.ERASE , '');
 	}else{
 		self.canvasModel.setType(SERVER , 'erase');
 	}
@@ -165,8 +195,7 @@ Controller.prototype.draw = function(e){
 	var self = this;
 	if(e[0] === LOCAL){
 		this.canvasModel.setType(LOCAL , 'draw');
-		var result = self.packData(SERVER , self.DRAW , '');
-		self.socketIO.emit('canvas_req' , result);
+		self.socketIO.emitCanvasReq(self.DRAW , '');
 	}else{
 		this.canvasModel.setType(SERVER , 'draw');
 	}
@@ -180,8 +209,7 @@ Controller.prototype.newCanvas = function(e){
 	var self = this;
 	if(e[0] === LOCAL){
 		self.canvasModel.newCanvas();
-		var result = self.packData(SERVER , self.NEW_CANVAS , '');
-		self.socketIO.emit('canvas_req' , result);
+		self.socketIO.emitCanvasReq(self.NEW_CANVAS , '');
 	}else{
 		self.canvasModel.newCanvas();
 	}
@@ -191,8 +219,7 @@ Controller.prototype.changeStroke = function(e){
 	var self = this;
 	if(e[0] === LOCAL){
 		var res = self.canvasModel.changeStroke(e);
-		var result = self.packData(SERVER , self.CHANGE_STROKE , res);
-		self.socketIO.emit('canvas_req' , result);
+		self.socketIO.emitCanvasReq(self.CHANGE_STROKE , res);
 	}else{
 		self.canvasModel.changeStroke(e);
 	}
@@ -200,14 +227,13 @@ Controller.prototype.changeStroke = function(e){
 
 /**
 *@description this function get canvas data from SERVER and assign them to the proper handler, only SocketIO can call this function
-*@param {String} data is a String whose construction is 'from&type&body', body is real data   
+*@param {Array} [from , [type , data]]   
 */
 Controller.prototype.chooseAction = function(data){
 	var self = this;
-	var data_arr = self.splitData(data);
-	var type = parseInt(data_arr[1]);
-	var from = parseInt(data_arr[0]);
-	var body = data_arr[2];
+	var type = parseInt(data[1][0]);
+	var from = parseInt(data[0]);
+	var body = data[1][1];
 	switch(type){
 		case 0: self.downInCanvas([from , body]); break;
 		case 1: self.moveInCanvas([from , body]); break;
@@ -215,29 +241,24 @@ Controller.prototype.chooseAction = function(data){
 		case 3: self.erase([from , body]);break;
 		case 4: self.draw([from , body]);break;
 		case 5: self.changeStroke([from , body]);break;
-
 	};
 
 };
 
-/**
-*@description split SERVER data , just called in chooseAction function
-*@param {String} data is a String whose construction is 'from&type&body', body is real data
-*@return {Array} [from , type , body]
-*/
-Controller.prototype.splitData = function(data){
-	if(!data) return null;
-	var result = data.toString().match(/^(1)&(\d)&(.*)$/);
-	if(result){
-		result.shift();
-		return result;
-	}
-};
 
-//from+type+body ==========================================this function should move to SocketIO
-Controller.prototype.packData = function(from , type , body){
-	return from + '&' + type + '&' + body;
-};
+// Controller.prototype.splitData = function(data){
+// 	if(!data) return null;
+// 	var result = data.toString().match(/^(1)&(\d)&(.*)$/);
+// 	if(result){
+// 		result.shift();
+// 		return result;
+// 	}
+// };
+
+// //from+type+body ==========================================this function should move to SocketIO
+// Controller.prototype.packData = function(from , type , body){
+// 	return from + '&' + type + '&' + body;
+// };
 
 
 Controller.prototype.getCanvas = function(){
@@ -268,14 +289,17 @@ Controller.prototype.createRoom = function(formData){
 	}
 };
 
-
+/**
+*@description process the response of create room
+*@param {Array} res [boolean , data]
+*/
 Controller.prototype.createRoomRes = function(res){
 	var success = res[0];
 	if(success){
 		this.canvasModel = new CanvasModel();
+		this.canvasModel.init(getCanvasElement());
 		this.roomModel = new RoomModel();
 		this.roomModel.comeIn(res);
-		this.canvasModel.init($('#mycanvas').get(0));
 		showCanvasAnimation();
 	}else{
 		console.log(res);
@@ -373,12 +397,12 @@ CanvasModel.prototype.preDraw = function(e){
 		var coord = $(body.target).offset();
 		this._local_pre_data.pre_x = body.pageX - coord.left;
 		this._local_pre_data.pre_y = body.pageY - coord.top;
-		var coord_string = this._local_pre_data.pre_x.toString() + '#' + this._local_pre_data.pre_y.toString();
-		return coord_string;
+		return [this._local_pre_data.pre_x , this._local_pre_data.pre_y];
 	}else if(from === SERVER){
-		var coord = body.split('#');
-		this._server_pre_data.pre_x = parseInt(coord[0]);
-		this._server_pre_data.pre_y = parseInt(coord[1]);
+		var x = body[0];
+		var y = body[1];
+		this._server_pre_data.pre_x = parseInt(x);
+		this._server_pre_data.pre_y = parseInt(y);
 		return null;
 	}
 
@@ -406,13 +430,11 @@ CanvasModel.prototype.draw = function(e){
 		this._local_pre_data.pre_x = now_x;
 		this._local_pre_data.pre_y = now_y;
 		this.stroke(LOCAL , [pre_x , pre_y] , [now_x , now_y]);
-		var coord_string = this._local_pre_data.pre_x.toString() + '#' + this._local_pre_data.pre_y.toString();
-		return coord_string;
+		return [this._local_pre_data.pre_x , this._local_pre_data.pre_y];
 
 	}else if(from === SERVER){
-		var coord = body.split('#');
-		now_x = parseInt(coord[0]);
-		now_y = parseInt(coord[1]);
+		now_x = parseInt(body[0]);
+		now_y = parseInt(body[1]);
 		pre_x = this._server_pre_data.pre_x;
 		pre_y = this._server_pre_data.pre_y;
 		this._server_pre_data.pre_x = now_x;
@@ -603,12 +625,14 @@ function RoomModel(){
 
 RoomModel.prototype.comeIn = function(data){
 	var roomId = data[1][0];
-	var user = data[1][1];
-	if(user instanceof Array){
-		this.users = user;
+	var users = data[1][1];
+	if(users instanceof Array){
+		this.users = users;
 	}else{
-		this.users.push(user);
+		this.users.push(users);
 	}
+	//addPartnerAnimation(users);
+
 };
 
 
@@ -619,7 +643,7 @@ RoomModel.prototype.partnerIn = function(data){
 	}else{
 		this.users.push(data[1][1]);
 	}
-	//show Animation
+	//addPartnerAnimation([partner]);
 	
 };
 
@@ -955,19 +979,22 @@ var showFormError = function(formItem , error){
 
 /**
 *@description add partner's name to list 
-*@param {String} partner is the name of partner
+*@param {Array} partners is the array of partners' name
 */
-var addPartnerAnimation = function(partner){
-	var elem = $('<li></li>');
-	elem.attr('class' , partner); //partner's name is the id of 'li'
-	elem.append('<span>'+ partner + '</span>');
-	elem.css('display' , 'none');
-	elem.appendTo('#partners_list');
-	elem.fadeIn('slow');
+var addPartnerAnimation = function(partners){
+	for(var i = 0 ; i < partners.length ; i++){
+		var elem = $('<li></li>');
+		elem.attr('class' , partners[i]); //partner's name is the id of 'li'
+		elem.append('<span>'+ partner[i] + '</span>');
+		elem.css('display' , 'none');
+		elem.appendTo('#partners_list');
+		elem.fadeIn('slow');
+	}
 };
 
 /**
-*@description converse function of upper one  
+*@description converse function of upper one, but param is a string, not a array!
+*@param {String} partner
 */
 var removePartnerAnimation = function(partner){
 	var elem = '.' + partner;
@@ -975,7 +1002,6 @@ var removePartnerAnimation = function(partner){
 	li.fadeOut('slow',function(){
 		li.detach();
 	});
-	
 };
 
 /**
@@ -1014,3 +1040,8 @@ var showCanvasMask = function(info){
 var hideCanvasMask = function(){
 
 };
+
+var getCanvasElement = function(){
+	return $('canvas').get(0);
+};
+

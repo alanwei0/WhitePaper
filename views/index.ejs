@@ -11,26 +11,32 @@
 <body>
     <div id='canvas_wrap'>
         <div class='inner'>
-            
-            <div class='partners_panel'>
-                <ol id='partners_list'>
-                    <li class='Yammywei'><span>Yammywei</span></li>
-                    <li class='Robin'><span>Robin</span></li> 
-                </ol>
+            <div id='chat_panel'>
+                <div id='chat_input'><input type='text'><span>input from here!</span></div>
+                <ol id='chat_list'></ol>
             </div>
 
             <div class='tool_panel'>
                 <div class='tool' id='pen'><img src='/images/stroke.png' height='30' width='30'><div><span>Pen</span></div></div>
+                 <div class='tool' id='erase'><img src='/images/erase.png' height='30' width='30'><div><span>Eraser</span></div></div>
+                <div class='tool' id='newcanvas'><img src='/images/new.png' height='30' width='30'><div><span>Clear</span></div></div>
                 <div class='tool' id='setting'><img src='/images/settings.png' height='30' width='30'><div><span>Settings</span></div></div>
-                <div class='tool' id='erase'><img src='/images/erase.png' height='30' width='30'><div><span>Erase</span></div></div>
-                <div class='tool' id='newcanvas'><img src='/images/new.png' height='30' width='30'><div><span>New Canvas</span></div></div>
-                <div class='tool' id='save'><img src='/images/save.png' height='30' width='30'><div><span>Save</span></div></div>
+               
+                <div class='tool' id='save'><img src='/images/save.png' height='30' width='30'><div><span>Export</span></div></div>
                 <div class='tool' id='logout'><img src='/images/logout.png' height='30' width='30'><div><span>Logout</span></div></div>
             </div>
             <div class='canvas_eraser'>
-                <canvas id="mycanvas" height='520' width='900'></canvas>
+                <canvas id="mycanvas" height='520' width='645'></canvas>
+                <canvas class='era' style='display:none'></canvas>
             </div>
-            <!-- <div class='infomation'></div> -->
+            <div class='stroke_panel'>
+                <div id='color_selector'></div>
+                <div id='line_width_slider'>
+                    <div id='range'></div>
+                    <div id='now_width'><span></span></div>
+                </div>
+            </div>
+            <div class='infomation'></div>
         </div>
     </div>
   	<div id='login_mask'>
@@ -43,19 +49,19 @@
                 <div class="form_item room_id"> 
                     <label class='form_label' for='roomId'>RoomId</label>
                     <input class='form_input' id='roomId' type='text'>
-                    <div class='from_tip form_error'><span></span></div>
+                    <div class='form_tip form_error'></div>
                     <div class='form_tip form_req'><span></span></div>
                 </div>
                 <div class='form_item password'>
                     <label class='form_label' for='password'>Password</label>
                     <input class='form_input' id = 'password' type='password'>
-                    <div class='from_tip form_error'><span></span></div>
+                    <div class='form_tip form_error'></div>
                     <div class='form_tip form_req'><span>&gt;8</span></div>
                 </div>
                 <div class='form_item user_name'>
                     <label class='form_label' for='username'>UserName</label>
                     <input class='form_input' id='username' type='text'>
-                    <div class='from_tip form_error'><span></span></div>
+                    <div class='form_tip form_error'></div>
                     <div class='form_tip form_req'><span>&lt;10</span></div>
                 </div>
                 <div class='submit_item'>

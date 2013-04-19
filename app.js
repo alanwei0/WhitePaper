@@ -49,6 +49,6 @@ server.listen(app.get('port'), function(){
     console.log("Express server listening on port " + app.get('port'));
 });
 
-mongodb.init('127.0.0.1', 27017, 'whitepaper', {}, {w:-1});//strict means not recreate the existed collection
+mongodb.init('127.0.0.1', 27017, 'whitepaper', {}, {w:-1});
 socketManager.init(server , eventManager);
 controller.init(mongodb , eventManager);

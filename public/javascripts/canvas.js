@@ -36,13 +36,11 @@ Socket.prototype.on = function(){
 	// });
 
 	this._socket.on('join_room_res' , function(res){
-		self.controller.joinRoomRes();
+		self.controller.joinRoomRes(res);
 	});
 
 	this._socket.on('canvas_res' , function(res){
-		// this.reqNumber++;
-		// if(this.reqNumber > 5000) self.controller.getCanvas();
-		var res = [SERVER , this.splitData(res)];
+		var res = self.splitData(res);
 		self.controller.chooseAction(res);
 	});
 
@@ -70,6 +68,10 @@ Socket.prototype.on = function(){
 
 	});
 
+	this._socket.on('chat_res' , function(res){
+		controller.chat(SERVER , res);
+	});
+
 
 };
 
@@ -78,18 +80,20 @@ Socket.prototype.emit = function(e , data){
 };
 
 Socket.prototype.uploadCanvas = function(data){
+	var self = this;
 	var url = data.toString();
+	console.log(url.length);
 	var upload = function(){
 		var chunk;
 		if(url.length > 20000){
 			chunk = url.slice(0,20000);
 			url = url.slice(20000);
-			var interval = setTimeOut(upload , 1000);
+			var interval = setTimeout(upload , 1000);
 		}else{
 			chunk = '#end#' + url;
-			if(interval) clearTimeOut(interval);
+			if(interval) clearTimeout(interval);
 		}
-		this._socket.emit('upload_canvas' , chunk);
+		self._socket.emit('upload_canvas' , chunk);
 		
 	};
 	upload();
@@ -97,11 +101,12 @@ Socket.prototype.uploadCanvas = function(data){
 
 /**
 *@description split SERVER data 
-*@param {String} data is a String whose construction is 'type&body', body is real data
+*@param {String} data is a String whose construction is 'type[&body]', body is real data
 *@return {Array} [type , body]
 */
 Socket.prototype.splitData = function(data){
 	if(!data) return null;
+	if(data.toString().length === 1) return [data , ''];
 	var result = data.toString().match(/^(\d)&(.*)$/);
 	if(result){
 		var type = result[1];
@@ -112,6 +117,11 @@ Socket.prototype.splitData = function(data){
 
 
 Socket.prototype.emitCanvasReq = function(type , data){
+	this.reqNumber++;
+	if(this.reqNumber > 500){
+		self.controller.getCanvas();
+		this.reqNumber = 0;
+	}
 	var req_data = this.packData(type , data);
 	this._socket.emit('canvas_req' , req_data);
 };
@@ -123,7 +133,8 @@ Socket.prototype.emitCanvasReq = function(type , data){
 *@return {String} type + & + data
 */
 Socket.prototype.packData = function(type , data){
-	if(data && data.length < 1) return type;
+	if(!data || data.length < 1) return type;
+
 	data = data.join('#');
 	return type + '&' + data;
 };
@@ -231,16 +242,15 @@ Controller.prototype.changeStroke = function(e){
 */
 Controller.prototype.chooseAction = function(data){
 	var self = this;
-	var type = parseInt(data[1][0]);
-	var from = parseInt(data[0]);
-	var body = data[1][1];
+	var type = parseInt(data[0]);
+	var body = data[1];
 	switch(type){
-		case 0: self.downInCanvas([from , body]); break;
-		case 1: self.moveInCanvas([from , body]); break;
-		case 2: self.newCanvas([from , body]);break;
-		case 3: self.erase([from , body]);break;
-		case 4: self.draw([from , body]);break;
-		case 5: self.changeStroke([from , body]);break;
+		case 0: self.downInCanvas([SERVER , body]); break;
+		case 1: self.moveInCanvas([SERVER , body]); break;
+		case 2: self.newCanvas([SERVER , body]);break;
+		case 3: self.erase([SERVER , body]);break;
+		case 4: self.draw([SERVER , body]);break;
+		case 5: self.changeStroke([SERVER , body]);break;
 	};
 
 };
@@ -262,7 +272,7 @@ Controller.prototype.chooseAction = function(data){
 
 
 Controller.prototype.getCanvas = function(){
-	var canvas_data = CanvasModel.getCanvas();
+	var canvas_data = this.canvasModel.getCanvas();
 	this.socketIO.uploadCanvas(canvas_data);
 };
 
@@ -296,11 +306,15 @@ Controller.prototype.createRoom = function(formData){
 Controller.prototype.createRoomRes = function(res){
 	var success = res[0];
 	if(success){
+		
 		this.canvasModel = new CanvasModel();
-		this.canvasModel.init(getCanvasElement());
+		this.canvasModel.init(getCanvasElement() , '');
 		this.roomModel = new RoomModel();
-		this.roomModel.comeIn(res);
+		this.roomModel.comeIn(res , this.loginModel.getUsername());
+		bindCanvasEvent();
 		showCanvasAnimation();
+		
+
 	}else{
 		console.log(res);
 	}
@@ -318,13 +332,16 @@ Controller.prototype.joinRoom = function(formData){
 Controller.prototype.joinRoomRes = function(res){
 	var success = res[0];
 	if(success){
+		var url = res[1][2];
 		this.canvasModel = new CanvasModel();
+		this.canvasModel.init(getCanvasElement() , url);
 		this.roomModel = new RoomModel();
-		this.roomModel.comeIn(res);
-		this.canvasModel.setCanvas($('#mycanvas').get(0));
+		this.roomModel.comeIn(res , this.loginModel.getUsername());
+		bindCanvasEvent();
 		showCanvasAnimation();
+		
 	}else{
-		console.log(res);
+		showRoomIdError(res[1]);
 	}
 };
 
@@ -337,6 +354,26 @@ Controller.prototype.partnerDisconnect = function(res){
 Controller.prototype.partnerIntoRoom = function(res){
 	this.roomModel.partnerIn(res);
 };
+
+Controller.prototype.save = function(){
+	this.canvasModel.save();
+};
+
+Controller.prototype.leaveRoom = function(){
+	this.roomModel = null;
+	this.canvasModel = null;
+	this.loginModel = new LoginModel();
+	this.loadRoomId();
+	showLoginPanelAnimation();
+	clearChatList();
+};
+
+Controller.prototype.chat = function(from , data){
+	this.roomModel.chat(from , data);
+	if(from === LOCAL){
+		this.socketIO.emit('chat_req', data);
+	}
+}
 
 
 
@@ -369,7 +406,7 @@ function CanvasModel(){
 
 	this.eraseState = {
 		'strokeStyle':'#fff' ,
-		'lineWidth':'30',
+		'lineWidth': 30,
 	};
 }
 
@@ -383,10 +420,16 @@ CanvasModel.prototype.setType = function(from , type){
 };
 
 
-CanvasModel.prototype.init = function(canvas){
+CanvasModel.prototype.init = function(canvas , url){
 	this.canvas = canvas;
 	this.context = this.canvas.getContext('2d');
-	toolAnimation.setActive('pen');
+	this.context.fillStyle = '#fff';
+	if(url.length < 1){
+		this.context.fillRect(0,0,900,520);
+	}else{
+		this.recoverCanvas(url);
+	}
+	
 };
 
 
@@ -394,7 +437,7 @@ CanvasModel.prototype.preDraw = function(e){
 	var from = parseInt(e[0]);
 	var body = e[1];
 	if(from === LOCAL){
-		var coord = $(body.target).offset();
+		var coord = $(body.currentTarget).offset();
 		this._local_pre_data.pre_x = body.pageX - coord.left;
 		this._local_pre_data.pre_y = body.pageY - coord.top;
 		return [this._local_pre_data.pre_x , this._local_pre_data.pre_y];
@@ -419,7 +462,7 @@ CanvasModel.prototype.draw = function(e){
 	var from = parseInt(e[0]);
 	var body = e[1];
 	if(from === LOCAL){
-		var coord = $(body.target).offset();
+		var coord = $(body.currentTarget).offset();
 
 		now_x = body.pageX - coord.left;
 		now_y = body.pageY - coord.top;
@@ -429,7 +472,7 @@ CanvasModel.prototype.draw = function(e){
 		pre_y = abs_pos[1];
 		this._local_pre_data.pre_x = now_x;
 		this._local_pre_data.pre_y = now_y;
-		this.stroke(LOCAL , [pre_x , pre_y] , [now_x , now_y]);
+		this.stroke(LOCAL , this._local_pre_data.type , [pre_x , pre_y] , [now_x , now_y]);
 		return [this._local_pre_data.pre_x , this._local_pre_data.pre_y];
 
 	}else if(from === SERVER){
@@ -439,7 +482,7 @@ CanvasModel.prototype.draw = function(e){
 		pre_y = this._server_pre_data.pre_y;
 		this._server_pre_data.pre_x = now_x;
 		this._server_pre_data.pre_y = now_y;
-		this.stroke(SERVER , [pre_x , pre_y] , [now_x , now_y]);
+		this.stroke(SERVER , this._server_pre_data.type , [pre_x , pre_y] , [now_x , now_y]);
 		return null;
 	}
 };
@@ -450,6 +493,8 @@ CanvasModel.prototype.stroke = function(from , type , begin , end){//type = draw
 	this.context.beginPath();
 	this.context.moveTo(begin[0] , begin[1]);
 	this.context.lineTo(end[0] , end[1]);
+	this.context.lineCap="round";
+	this.context.lineJoin="round";
 	this.context.stroke();
 
 };
@@ -487,10 +532,11 @@ CanvasModel.prototype.getCanvas = function(){
 
 
 CanvasModel.prototype.recoverCanvas = function(url){
+	var self = this;
 	var img = $('<img></img>');
 	img.attr('src' , url);
 	img.load(function(){
-		this.context.drawImage(img.get(0),0,0);
+		self.context.drawImage(img.get(0),0,0);
 	});
 };
 
@@ -512,6 +558,12 @@ CanvasModel.prototype.changeStroke = function(e){
 	return e.pop();
 };
 
+CanvasModel.prototype.save = function(){
+	var url = this.getCanvas();
+	addShot(url);
+	infomationAnimation.showInformation('You can save the shot by right-click or dragging to your desktop');
+};
+
 
 
 //LoginModel
@@ -525,6 +577,7 @@ function LoginModel(){
 	this.roomId;
 	this.password;
 	this.username;
+
 }
 
 
@@ -538,6 +591,10 @@ LoginModel.prototype.getRoomId = function(){
 	return this.roomId;
 };
 
+LoginModel.prototype.getUsername = function(){
+	return this.username;
+};
+
 
 LoginModel.prototype.createRoom = function(formData){ 
 	var roomId = formData[0];
@@ -546,17 +603,34 @@ LoginModel.prototype.createRoom = function(formData){
 	var roomId_valid = this.checkRoomId(1 , roomId);
 	var password_valid = this.checkPassword(password);
 	var username_valid = this.checkUsername(username);
+	var valid = true;
 	if(!roomId_valid[0]) {
-		//show error data
-		return false;
+		showRoomIdError(roomId_valid[1]);
+		valid = false;
+	}else{
+		clearError($('.room_id'));
 	}
 	if(!password_valid[0]){
+		showPasswordError(password_valid[1]);
+		valid = false;
+	}else{
+		clearError($('.password'));
+	}
+	if(!username_valid[0]){
+		showUsernameError(username_valid[1]);
+		valid = false;
+	}else{
+		clearError($('.user_name'));
+	}
+
+	if(valid){
+		this.username = username;
+		return true;
+
+	}else{
 		return false;
 	}
-	if(!username[0]){
-		return false;
-	}
-	return true;
+	
 
 };
 
@@ -568,17 +642,33 @@ LoginModel.prototype.joinRoom = function(formData){
 	var roomId_valid = this.checkRoomId(0 , roomId);
 	var password_valid = this.checkPassword(password);
 	var username_valid = this.checkUsername(username);
+	var valid = true;
 	if(!roomId_valid[0]) {
-		//show error data
-		return false;
+		showRoomIdError(roomId_valid[1]);
+		valid = false;
+	}else{
+		clearError($('.room_id'));
 	}
 	if(!password_valid[0]){
+		showPasswordError(password_valid[1]);
+		valid = false;
+	}else{
+		clearError($('.password'));
+	}
+	if(!username_valid[0]){
+		showUsernameError(username_valid[1]);
+		valid = false;
+	}else{
+		clearError($('.user_name'));
+	}
+
+	if(valid){
+		this.username = username;
+		return true;
+
+	}else{
 		return false;
 	}
-	if(!username[0]){
-		return false;
-	}
-	return true;
 };
 
 
@@ -588,7 +678,7 @@ LoginModel.prototype.checkRoomId = function(create , roomId){
 	}
 	roomId = roomId.toString();
     if(!roomId) return [0,'required'];
-    if(!roomId.match(/^\d+$/)) return [0,'illegal'];
+    if(!roomId.match(/^\w+$/)) return [0,'illegal'];
     return [1];
 };
 
@@ -601,8 +691,8 @@ LoginModel.prototype.checkPassword = function(password){
 
 
 LoginModel.prototype.checkUsername = function(username){
-	if(!name) return [0,'required'];
-    if(name.length > 20 ) return [0,'too long'];
+	if(!username) return [0,'required'];
+    if(username.length > 10 ) return [0,'too long'];
     return [1];
 };
 
@@ -619,54 +709,62 @@ LoginModel.prototype.checkUsername = function(username){
 
 function RoomModel(){
 	this.roomId;
-	this.users = [];
+	this.me;
+	this.you;
 }
 
 
-RoomModel.prototype.comeIn = function(data){
-	var roomId = data[1][0];
+RoomModel.prototype.comeIn = function(data , me){
+	this.roomId = data[1][0];
 	var users = data[1][1];
-	if(users instanceof Array){
-		this.users = users;
-	}else{
-		this.users.push(users);
+	if( users instanceof Array && users.length === 2){
+		if(users[0] === me){
+			this.you = users[1];
+		}else{
+			this.you = users[0];
+		}
+		addPartnerAnimation(this.you);
 	}
-	//addPartnerAnimation(users);
-
+	this.me = me;
+	comeInAnimation(this.me);
 };
 
 
-RoomModel.prototype.partnerIn = function(data){
-	var partner = data[1][1];
-	if(this.isPartnerIn(partner)){
-		return;
-	}else{
-		this.users.push(data[1][1]);
-	}
-	//addPartnerAnimation([partner]);
+RoomModel.prototype.partnerIn = function(partner){
+	this.you = partner;
+	infomationAnimation.showInformation(partner + ' comes In!');
+	addPartnerAnimation(partner);
 	
 };
 
 
 RoomModel.prototype.partnerLeave = function(partner){
-	//show Animation
+	if(!this.you) return;
+	infomationAnimation.showInformation(partner + ' logouts!');
+	removePartnerAnimation(partner);
 };
 
 
-RoomModel.prototype.partnerDisconnect = function(parnter){
-	//show Animation
+RoomModel.prototype.partnerDisconnect = function(partner){
+	if(!this.you) return;
+	infomationAnimation.showInformation(partner + ' disconnects!');
+	removePartnerAnimation(partner);
+};
+
+RoomModel.prototype.chat = function(from , data){
+	addChatAnimation(from , data);
 };
 
 
-RoomModel.prototype.isPartnerIn = function(parnter){
-	var i;
-	partner = partner.toString();
-	var users = this.users;
-	for(i in users){
-		if(partner === users[i]) return true;
-	}
-	return false;
-};
+// RoomModel.prototype.isPartnerIn = function(partner){
+// 	var i;
+// 	partner = partner.toString();
+// 	var users = this.users;
+// 	for(i in users){
+// 		if(partner === users[i]) return true;
+// 	}
+// 	return false;
+// };
 
 
 
@@ -682,54 +780,6 @@ controller.init();
 controller.loadRoomId();
 
 $(document).ready(function(){
-
-	/**
-	*bind event listener to canvas, show animation and emit to controller
-	*/
-	(function(){
-		var canvas_eraser = $('.canvas_eraser');
-		var begin_erase = false;
-		$('#erase').click(function(){
-			begin_erase = true;
-			if($('.era').get(0)) return;
-			var eraser = $('<div></div>');
-			eraser.attr('class' , 'era');
-			eraser.css('display' , 'none');
-			eraser.appendTo('.canvas_eraser');
-			controller.erase([LOCAL]); //-----------------------call erase function
-		});
-
-		$('#pen').click(function(){
-			controller.draw([LOCAL]);//--------------------------call draw function 
-		});
-
-
-		canvas_eraser.mousedown(function(e){
-			controller.downInCanvas([LOCAL,e]);//-------------- call downInCanvas function
-		});
-
-		canvas_eraser.mousemove(function(e){
-			if(begin_erase){
-				var eraser = $('.era');
-				if(!mouseOutOfCanvas(e.pageX , e.pageY)){
-					eraser.css('left' , e.pageX-18);
-					eraser.css('top' , e.pageY-18);
-					eraser.css('display' , 'inline-block');
-				}else{
-					eraser.css('display' , 'none');
-				}
-			}else{
-				controller.moveInCanvas([LOCAL,e]);//---------call moveInCanvas function
-			}
-			
-		});
-
-
-		$(document).mouseup(function(e){
-			controller.mouseUp([LOCAL,e]);//-------------------call mouseup function
-		});
-
-	})();
 
 	/**
 	*event, transform of 'create' and 'join' button
@@ -821,36 +871,37 @@ $(document).ready(function(){
 		$('#roomiId').focusin();
 		$('.room_id > .form_label').fadeOut(100);
 		$('.room_id > .form_req').fadeOut(100);
-		$('#roomId').focusout(function(){
-			if(this.value) return;
-			$('.room_id > .form_label').fadeIn(150);
-			$('.room_id > .form_req').fadeIn(150);
-		});
 
+	});
+
+	$('#roomId').focusout(function(){
+		if(this.value) return;
+		$('.room_id > .form_label').fadeIn(150);
+		$('.room_id > .form_req').fadeIn(150);
 	});
 
 	$('.password').bind('click' , function(){
 		$('#password').focusin();
 		$('.password > .form_label').fadeOut(100);
 		$('.password > .form_req').fadeOut(100);
-		$('#password').focusout(function(){
-			if(this.value) return;
-			$('.password > .form_label').fadeIn(150);
-			$('.password > .form_req').fadeIn(150);
-		});
+	});
 
+	$('#password').focusout(function(){
+		if(this.value) return;
+		$('.password > .form_label').fadeIn(150);
+		$('.password > .form_req').fadeIn(150);
 	});
 
 	$('.user_name').bind('click' , function(){
 		$('#username').focusin();
 		$('.user_name > .form_label').fadeOut(100);
 		$('.user_name > .form_req').fadeOut(100);
-		$('#username').focusout(function(){
-			if(this.value) return;
-			$('.user_name > .form_label').fadeIn(150);
-			$('.user_name > .form_req').fadeIn(150);
-		});
+	});
 
+	$('#username').focusout(function(){
+		if(this.value) return;
+		$('.user_name > .form_label').fadeIn(150);
+		$('.user_name > .form_req').fadeIn(150);
 	});
 
 
@@ -858,7 +909,30 @@ $(document).ready(function(){
 		controller.newCanvas([LOCAL]);//------------------------call nowCanvas function
 	});
 
-	toolAnimation.init();
+	$('#logout').click(function(){
+		controller.leaveRoom();//------------------------------call leaveRoom function
+	});
+
+	$('#chat_input input').keydown(function(e){
+		if(e.which == 13 && this.value.length > 0){
+			controller.chat(LOCAL , this.value);//-------------------------------call chat function
+			this.value = '';
+		}
+	});
+
+	$('#chat_input').click(function(){
+		$(this).children('input').focus();
+		$(this).children('span').fadeOut(100);
+		
+	});
+
+	$('#chat_input input').focusout(function(){
+		if(!this.value) $(this).parent().children('span').fadeIn(100);
+	});
+
+
+
+
 });
 
 
@@ -882,21 +956,28 @@ var toolAnimation = {
 	*@description  bind event listener(animation) to tools 
 	*/
 	'init': function(){
+		var self = this;
 		var tool = $('.tool');
+	
+
 		tool.click(function(e){
-			if(active === ''){
-				active = e.currentTarget.id;
-				return;
-			}
-			if(active !== e.currentTarget.id){
-				var temp = active;
-				active = e.currentTarget.id;
-				$('#' + temp).mouseleave();
-			}
+			// if(self.active === ''){
+			// 	self.active = e.currentTarget.id;
+			// 	return;
+			// }
+			// if(self.active !== e.currentTarget.id){
+			// 	var temp = self.active;
+			// 	self.active = e.currentTarget.id;
+			// 	$('#' + temp).mouseleave();
+			// }
+			if($(this).hasClass('active')) return;
+			if($('.active').get(0)) $('.active').removeClass('active').mouseleave();
+			$(this).addClass('active');
 		});
 
 		tool.mouseenter(function(e){
-			if(active === e.currentTarget.id) return;
+			// if(self.active === e.currentTarget.id) return;
+			if($(this).hasClass('active')) return;
 			var text = this.getElementsByTagName('div')[0];
 			var img = this.getElementsByTagName('img')[0];
 			$(img).fadeOut(100);
@@ -905,12 +986,70 @@ var toolAnimation = {
 		});
 
 		tool.mouseleave(function(e){
-			if(active === e.currentTarget.id) return;
+			//if(self.active === e.currentTarget.id) return;
+			if($(this).hasClass('active')) return;
 			var text = this.getElementsByTagName('div')[0];
 			var img = this.getElementsByTagName('img')[0];		 
 			$(text).fadeOut(100);
 			$(img).fadeIn(150);
 		});
+
+		//======================================================
+		var setting = $('#setting');
+		setting.click(function(e){
+			strokeSettingPanel.showPanel();
+		});
+
+		setting.mouseleave(function(e){
+			if($(this).hasClass('active')) return;
+			strokeSettingPanel.hidePanel();
+		});
+		//=======================================================
+		(function(){
+			var erase = $('#erase');
+			var begin_erase = false;
+			
+			erase.click(function(){
+				begin_erase = true;
+			});
+
+			$('.tool').click(function(){
+				if(this !== $('#erase').get(0)) begin_erase = false;
+			});
+
+			erase.mouseleave(function(e){
+				if($(this).hasClass('active')) return;
+				$('.era').css('display' , 'none');
+			});
+
+			$('.canvas_eraser').mousemove(function(e){
+				if(begin_erase){
+					var eraser = $('.era');
+					if(!mouseOutOfCanvas(e.pageX , e.pageY)){
+						eraser.css('left' , e.pageX-18);
+						eraser.css('top' , e.pageY-18);
+						eraser.css('display' , 'inline-block');
+					}else{
+						eraser.css('display' , 'none');
+					}
+				}
+			});
+		})();
+		//==================================================
+		var clear = $('#newcanvas');
+		clear.click(function(){
+			if(!$(this).hasClass('active')) return;
+			$(this).removeClass('active');
+		});
+		//==================================================
+		$('#save').click(function(){
+			if(!$(this).hasClass('active')) return;
+			$(this).removeClass('active');
+		});
+		//==================================================
+
+		$('#pen').mouseenter().click();
+
 	},
 
 	/**
@@ -918,7 +1057,7 @@ var toolAnimation = {
 	*@param {String} id is the 'id' attr of your selected tool, ex:'logout', 'newcanvas', 'save', 
 	*/
 	'setUnactive':function(id){
-		this.active = '';
+		$(this).removeClass('active');
 		$('#' + id).mouseleave();
 	},
 
@@ -927,13 +1066,7 @@ var toolAnimation = {
 	*@param {String} id is the 'id' attr of your selected tool, ex:'logout', 'newcanvas', 'save'
 	*/
 	'setActive':function(id){
-		this.active = id;
-		var elem = $('#' + id).get(0);
-		var text = elem.getElementsByTagName('div')[0];
-		var img = elem.getElementsByTagName('img')[0];
-		$(img).fadeOut(100);
-		$(text).fadeIn(150);	
-
+		$('#'+id).mouseenter().click();	
 	},
 };
 
@@ -949,6 +1082,13 @@ var getFormData = function(){
 	return [roomId , password , username];
 };
 
+var clearFormData = function(){
+	$('#roomId').get(0).value = null;
+	$('#password').get(0).value = null;
+	$('#username').get(0).value = null;
+
+};
+
 
 /**
 *@description show Canvas panel and hide login panel when you login successfully
@@ -958,50 +1098,80 @@ var showCanvasAnimation = function(){
 	var canvasPanel = $('#canvas_wrap');
 	loginPanel.fadeOut(200);
 	canvasPanel.fadeIn(200);
+	toolAnimation.init();
+	strokeSettingPanel.init();
+
 };
 
 /**
 *@description converse function of upper one  
 */
 var showLoginPanelAnimation = function(){
+	clearFormData();
 	var loginPanel = $('#login_mask');
 	var canvasPanel = $('#canvas_wrap');
 	canvasPanel.fadeOut(200);
-	loginPanel.fadeIn(200);
+	loginPanel.fadeIn(200 , function(){
+		$('.form_label').fadeIn(150);
+		$('.form_req').fadeIn(150);
+	});
+	
 };
 
 
 
-var showFormError = function(formItem , error){
+var showRoomIdError = function(error){
+	showError($('.room_id') , error);
+};
 
+var showPasswordError = function(error){
+	showError($('.password') , error);
+};
+
+var showUsernameError = function(error){
+	showError($('.user_name') , error);
+};
+
+var showError = function(elem , error){
+	elem.children('.form_input').addClass('error');
+	elem.children('.form_error').html('<span>' + error + '</span>').fadeIn(150);
+	elem.children('.form_req').fadeOut(100);
+
+};
+
+var clearError = function(elem){
+	if(!elem.children('.form_input').hasClass('error')) return;
+	elem.children('.form_input').removeClass('error');
+	elem.children('.form_error').html('').css('display' , 'none');
+	elem.children('.form_req').css('display' , 'block');
+};
+
+
+var comeInAnimation = function(user){
+	var me = $('<div><span>' + user + '</span></div>').addClass('user me');
+	me.css('display' , 'none');
+	me.appendTo('.inner');
+	me.fadeIn(200);
 };
 
 
 /**
 *@description add partner's name to list 
-*@param {Array} partners is the array of partners' name
+*@param {Array} partners is the array of partner's name
 */
-var addPartnerAnimation = function(partners){
-	for(var i = 0 ; i < partners.length ; i++){
-		var elem = $('<li></li>');
-		elem.attr('class' , partners[i]); //partner's name is the id of 'li'
-		elem.append('<span>'+ partner[i] + '</span>');
-		elem.css('display' , 'none');
-		elem.appendTo('#partners_list');
-		elem.fadeIn('slow');
-	}
+var addPartnerAnimation = function(partner){
+	var you = $('<div><span>' + partner + '</span></div>').addClass('user partner');
+	you.css('display' , 'none');
+	you.appendTo('.inner');
+	you.fadeIn(200);
 };
 
 /**
 *@description converse function of upper one, but param is a string, not a array!
 *@param {String} partner
 */
-var removePartnerAnimation = function(partner){
-	var elem = '.' + partner;
-	var li = $(elem);
-	li.fadeOut('slow',function(){
-		li.detach();
-	});
+var removePartnerAnimation = function(){
+	$('.partner').detach();
 };
 
 /**
@@ -1013,7 +1183,7 @@ var removePartnerAnimation = function(partner){
 var mouseOutOfCanvas = function(x , y){
 	var canvas = $('.canvas_eraser');
 	var coord = canvas.offset();
-	if(x < coord.left || x > (coord.top+900)){
+	if(x < coord.left || x > (coord.left+645)){
 		return true;
 	}
 	if(y < coord.top || y > (coord.top+520)){
@@ -1023,13 +1193,25 @@ var mouseOutOfCanvas = function(x , y){
 };
 
 
-
-var showInformation = function(info){
-	
-};
-
-var hideInformation = function(){
-
+var infomationAnimation = {
+	'interval': {},
+	'showInformation':function(info){
+		clearTimeout(this.interval);
+		var infomation = $('.infomation');
+		infomation.html('<span>' + info + '</span>');
+		var time = 0;
+		var animation = function(){
+			infomation.fadeIn(1500);
+			infomation.fadeOut(2000);
+			time++;
+			if(time >= 4 ){
+				clearTimeout(this.interval);
+			}else{
+				this.interval = setTimeout(animation , 20);
+			}
+		};
+		animation();
+	},
 };
 
 
@@ -1043,5 +1225,220 @@ var hideCanvasMask = function(){
 
 var getCanvasElement = function(){
 	return $('canvas').get(0);
+};
+
+
+//Stroke Setting Panel==================================
+//======================================================
+//======================================================
+//======================================================
+
+
+
+var strokeSettingPanel = {
+	'strokeStyle':'rgb(0,0,0)',
+	'lineWidth':3,
+
+	'init':function(){
+		this.panel = $('.stroke_panel');
+		this.color_selector = $('#color_selector');
+		this.line_width_slider = $('#line_width_slider');
+		this.range = $('#range');
+		this.now_width = $('#now_width span');
+		this.now_width.html(3);
+		this.activeDiv;
+
+		var self = this;
+
+		(function(){
+			var red;
+			var green;
+			var blue;
+			var index = 0;
+			for(red = 50 ; red <= 200 ; red += 50){
+				for(green = 50 ; green <= 200 ; green += 50){
+					for(blue = 50 ; blue <= 200 ; blue += 50){
+						var color_div = $('<div></div>');
+						color_div.attr('class' , 'color_div');
+						var color = 'rgb(' + red + ',' + green + ',' + blue + ')';
+						if(index === 0){
+							color = 'rgb(0,0,0)';
+							color_div.css('outline' , '2px solid #000');
+							color_div.css('background-color' , color);
+							self.activeDiv = color_div;
+						}
+						
+						color_div.css('background-color' , color);
+						color_div.appendTo(self.color_selector);
+						index++;
+					}
+				}
+			}
+		})();
+
+		self.color_selector.bind('click' , function(e){
+			var temp = self.activeDiv;
+			temp.css('outline' , 'none');
+			var elem = e.target;
+			self.activeDiv = $(elem);
+			if(elem === this) return;
+			var all_elems = this.getElementsByTagName('div');
+			var i;
+			for(i in all_elems){
+				if(all_elems[i] === elem) break;
+			}
+			self.strokeStyle = self.index2color(i);
+			$(elem).css('outline' , '2px solid ' + self.strokeStyle);
+		});
+
+		(function(){
+			var state = 0;
+			var min_width = 3;
+			var distance = 105;
+			var left = self.range.offset().left;
+			self.line_width_slider.bind('mousedown' , function(){
+				state = 1;
+			});
+
+			self.line_width_slider.bind('click' , function(e){
+				e.preventDefault();
+				var now_left = e.pageX - left - 6;
+				if(now_left > (distance - 6)) now_left = distance - 6;
+				if(now_left < -6 ) now_left = -6;
+				self.range.css('left' , now_left);
+				self.lineWidth = 3 + Math.floor((now_left + 6)/distance/5*100);
+				self.now_width.html(self.lineWidth);
+			});
+
+			$(document).bind('mousemove' , function(e){
+				if(state === 1){
+					e.preventDefault();
+					var now_left = e.pageX - left - 6;
+	 				if(now_left > (distance - 6)) now_left = distance - 6;
+	 				if(now_left < -6 ) now_left = -6;
+	 				self.range.css('left' , now_left);
+	 				self.lineWidth = 3 + Math.floor((now_left + 6)/distance/5*100);
+	 				self.now_width.html(self.lineWidth);
+				}
+				
+			});
+
+			$(document).bind('mouseup' , function(){
+				state = 0;
+			});
+		})();
+
+		this.panel.css('display' , 'none');		
+	},
+
+	'showPanel':function(){
+		var isHide = this.panel.css('display');
+		if(isHide !== 'none') return;
+		this.panel.fadeIn(100);
+	},
+
+	'hidePanel':function(){
+		var isHide = this.panel.css('display');
+		if(isHide === 'none') return;
+		this.panel.fadeOut(100);
+	},
+
+	'index2color':function(index){
+		var res_arr = [];
+		while(index >= 4){
+			var mod = index % 4;
+			res_arr.push(mod);
+			index = Math.floor(index / 4);
+		}
+		res_arr.push(index);
+		res_arr[2] = res_arr[2] || 0;
+		res_arr[1] = res_arr[1] || 0;
+		var red = (res_arr[2]+1)*50;
+		var green = (res_arr[1]+1)*50;
+		var blue = (res_arr[0]+1)*50;
+		var color = 'rgb(' + red + ',' + green + ',' + blue + ')';
+		return color;
+	},
+
+
+	'getStroke':function(){
+		return [this.strokeStyle , this.lineWidth];
+	},
+};
+
+
+var bindCanvasEvent = function(){
+	var canvas_eraser = $('.canvas_eraser');
+	$('#erase').click(function(){
+		if($(this).hasClass('active')) return;
+		controller.erase([LOCAL]); //-----------------------call erase function
+	});
+
+	$('#pen').click(function(){
+		if($(this).hasClass('active')) return;
+		controller.draw([LOCAL]);//--------------------------call draw function 
+	});
+
+	$('#setting').mouseleave(function(){
+		if($(this).hasClass('active')) return;
+		controller.changeStroke([LOCAL , strokeSettingPanel.getStroke()]);
+	});
+
+	canvas_eraser.mousedown(function(e){
+		controller.downInCanvas([LOCAL,e]);//-------------- call downInCanvas function
+	});
+
+	canvas_eraser.mousemove(function(e){
+		controller.moveInCanvas([LOCAL,e]);//---------call moveInCanvas function
+		
+	});
+
+
+	$(document).mouseup(function(e){
+		controller.mouseUp([LOCAL,e]);//-------------------call mouseup function
+	});
+
+	$('#save').click(function(){
+		controller.save();
+	});
+
+};
+
+
+var addShot = function(url){
+	var img = $('#shot');
+	if(!img.get(0)){
+		img = $('<img></img>');
+		img.attr('id' , 'shot');
+	}
+	
+	img.attr('src' , url);
+	img.css('display' , 'none');
+	img.appendTo('.inner');
+	img.load(function(){
+		img.fadeIn('slow');
+	});
+	
+};
+
+
+var addChatAnimation = function(from , data){
+	var chat_list = $('#chat_list');
+	var new_item = $('<li></li>').addClass('chat_item');
+	new_item.html('<span>' + data + '</span');
+
+	if(from === LOCAL){
+		new_item.css('background-color' , 'rgb(45,150,125)');
+		
+	}else{
+		new_item.css('background-color' , 'rgb(145,210,165)');
+	}
+	new_item.prependTo(chat_list);
+	new_item.animate({'margin-top' : '10px'});
+
+};
+
+var clearChatList = function(){
+	$('#chat_list').empty();
 };
 

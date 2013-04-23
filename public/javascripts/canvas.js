@@ -12,91 +12,122 @@ Socket.prototype.init = function(host){
 	this._socket = io.connect(host);
 };
 
+
+/**
+*@description bind events from server to local handler
+*
+*/
 Socket.prototype.on = function(){
 	var self = this;
 
+	/**
+	*load room id from the server at beginning
+	*@param {String} res is the room id 
+	*/
 	this._socket.on('load_room_id_res' , function(res){
 		self.controller.loadRoomId(res);
 	});
 
+	/**
+	*create room response
+	*@param {Array} res = [tag , [roomId , user] ] , tag = 0 or 1
+	*/
 	this._socket.on('create_room_res' , function(res){
 		self.controller.createRoomRes(res);
 	});
 
+	/**
+	*the request when your partner comes in
+	*@param {String} res is your partner's name
+	*/
 	this._socket.on('partner_into_room_req' , function(res){
 		self.controller.partnerIntoRoom(res);
 	});
 
-	this._socket.on('partner_disconnect' , function(res){
-		self.controller.partnerDisconnect(res);
-	});
-
-	// this._socket.on('partner_leave_room' , function(res){
-
-	// });
-
+	/**
+	*the response from the server when you join the room
+	*@param {Array} res = [tag , [roomId , [users] , canvas_url]]
+	*/
 	this._socket.on('join_room_res' , function(res){
 		self.controller.joinRoomRes(res);
 	});
 
+	/**
+	*the response from the server in which is the information about the canvas
+	*@param {String} res = type + '&' + data(which is splited by #)
+	*/
 	this._socket.on('canvas_res' , function(res){
 		var res = self.splitData(res);
 		self.controller.chooseAction(res);
 	});
 
+	/**
+	*the response from the server when you emit to recover the canvas
+	*@param {String} res is the url of canvas
+	*/
 	this._socket.on('recover_canvas_res' , function(res){
 		self._socket.emit('recover_canvas_over_req' , '');
 		self.controller.recoverCanvasRes(res);
 	});
 
+	/**
+	*the response which means your partner has recovered the canvas
+	*@param null
+	*/
 	this._socket.on('recover_canvas_over_res' , function(res){
 		self.controller.partnerRecoverOver();
 	});
 
-
+	/**
+	*server emit the request when your partner returns and is going to recover the canvas
+	*@param {Object} req = null
+	*/
 	this._socket.on('get_canvas_req' , function(req){
 		self.controller.getCanvas(1);
 	});
 
-	this._socket.on('reconnect' , function(){
-
-	});
-
-	this._socket.on('disconnect' , function(){
-
-	});
-
-	this._socket.on('reconnecting' , function(){
-
-	});
-
-	this._socket.on('reconnect_failed' , function(){
-
-	});
-
+	/**
+	*all chat infomation
+	*/
 	this._socket.on('chat_res' , function(res){
 		controller.chat(SERVER , res);
 	});
 
+	/**
+	*your partner leaves from the room or disconnects
+	*@param {String} res is the name of your partner
+	*/
+	this._socket.on('partner_disconnect' , function(res){
+		self.controller.partnerDisconnect(res);
+	});
 
 };
 
+/**
+*emit events to server
+*@param {String} e is the event
+*@param {Object} data can be any type
+*/
 Socket.prototype.emit = function(e , data){
 	this._socket.emit(e , data);
 };
 
+/**
+*upload your canvas to the server
+*@param {String} data is the url of the canvas
+*/
 Socket.prototype.uploadCanvas = function(data){
 	var self = this;
 	var url = data.toString();
 	console.log(url.length);
 	var upload = function(){
 		var chunk;
-		if(url.length > 20000){
+		if(url.length > 20000){// force to transfor 20000 b/s at most
 			chunk = url.slice(0,20000);
 			url = url.slice(20000);
 			var interval = setTimeout(upload , 1000);
 		}else{
-			chunk = '#end#' + url;
+			chunk = '#end#' + url;//if get the '#end#' , url is end
 			if(interval) clearTimeout(interval);
 		}
 		self._socket.emit('upload_canvas' , chunk);
@@ -121,7 +152,11 @@ Socket.prototype.splitData = function(data){
 	}
 };
 
-
+/**
+*emit all event about canvas from here
+*@type {String} type is the type of event
+*@data {Object} data can be any type
+*/
 Socket.prototype.emitCanvasReq = function(type , data){
 	this.reqNumber++;
 	if(this.reqNumber > 500){
@@ -134,14 +169,13 @@ Socket.prototype.emitCanvasReq = function(type , data){
 
 /**
 *@description package local data
-*@param {Int} type = LOCAL or SERVER
 *@param {Array} data
 *@return {String} type + & + data
 */
 Socket.prototype.packData = function(type , data){
 	if(!data || data.length < 1) return type;
 
-	data = data.join('#');
+	data = data.join('#');//data is splited by '#'
 	return type + '&' + data;
 };
 
@@ -153,10 +187,10 @@ Socket.prototype.packData = function(type , data){
 //===========================================================
 
 
-
-
 function Controller(){
 	this.canPaint = false;
+
+	//these are types of canvas event
 	this.DOWN_IN_CANVAS = 0;
 	this.MOVE_IN_CANVAS = 1;
 	this.NEW_CANVAS = 2;
@@ -167,10 +201,9 @@ function Controller(){
 
 Controller.prototype.init = function(){
 	this.socketIO = new Socket(this);
-	this.socketIO.init('192.168.47.84');
+	this.socketIO.init('http://localhost');
 	this.socketIO.on();
 	this.loginModel = new LoginModel();
-	//this.canvasModel = new CanvasModel();
 };
 
 // all functions' param 'e' is a {array}, which e[0] is 'from'(ex:LOCAL, SERVER), e[1] is 'body'(data) 
@@ -221,6 +254,7 @@ Controller.prototype.mouseUp = function(e){
 	this.canPaint = false;
 };
 
+
 Controller.prototype.newCanvas = function(e){
 	var self = this;
 	if(e[0] === LOCAL){
@@ -243,7 +277,7 @@ Controller.prototype.changeStroke = function(e){
 
 /**
 *@description this function get canvas data from SERVER and assign them to the proper handler, only SocketIO can call this function
-*@param {Array} [from , [type , data]]   
+*@param {Array} [type , data] 
 */
 Controller.prototype.chooseAction = function(data){
 	var self = this;
@@ -259,21 +293,6 @@ Controller.prototype.chooseAction = function(data){
 	};
 
 };
-
-
-// Controller.prototype.splitData = function(data){
-// 	if(!data) return null;
-// 	var result = data.toString().match(/^(1)&(\d)&(.*)$/);
-// 	if(result){
-// 		result.shift();
-// 		return result;
-// 	}
-// };
-
-// //from+type+body ==========================================this function should move to SocketIO
-// Controller.prototype.packData = function(from , type , body){
-// 	return from + '&' + type + '&' + body;
-// };
 
 
 Controller.prototype.getCanvas = function(tag){
@@ -309,10 +328,7 @@ Controller.prototype.createRoom = function(formData){
 	}
 };
 
-/**
-*@description process the response of create room
-*@param {Array} res [boolean , data]
-*/
+
 Controller.prototype.createRoomRes = function(res){
 	var success = res[0];
 	if(success){
@@ -342,7 +358,6 @@ Controller.prototype.joinRoom = function(formData){
 Controller.prototype.joinRoomRes = function(res){
 	var success = res[0];
 	if(success){
-		// var url = res[1][2];
 		this.canvasModel = new CanvasModel();
 		this.canvasModel.init(getCanvasElement());
 		this.roomModel = new RoomModel();
@@ -409,14 +424,17 @@ Controller.prototype.chat = function(from , data){
 function CanvasModel(){
 	this.context;
 	this.canvas = {'width':0,'height':0};
+
+	//states of pen
 	this._local_pre_data = {
-		'pre_x':-1,
+		'pre_x':-1,//previous x 
 		'pre_y':-1,
-		'type':'draw',
-		'strokeStyle': '#000',
+		'type':'draw',//type = 'draw' or 'erase'
+		'strokeStyle': '#000', //the color of stroke
 		'lineWidth': 3,
 
 	};
+
 	this._server_pre_data = {
 		'pre_x':-1 ,
 		'pre_y':-1 ,
@@ -425,12 +443,12 @@ function CanvasModel(){
 		'lineWidth': 3 ,
 	};
 
+	//states of eraser
 	this.eraseState = {
 		'strokeStyle':'#fff' ,
 		'lineWidth': 30,
 	};
 }
-
 
 CanvasModel.prototype.setType = function(from , type){
 	if(from === LOCAL){
@@ -444,12 +462,6 @@ CanvasModel.prototype.setType = function(from , type){
 CanvasModel.prototype.init = function(canvas){
 	this.canvas = canvas;
 	this.context = this.canvas.getContext('2d');
-	// this.context.fillStyle = '#fff';
-	// if(url.length < 1){
-	// 	this.context.fillRect(0,0,600,520);
-	// }else{
-	// 	this.recoverCanvas(url);
-	// }
 	this.context.fillStyle = '#fff';
 	this.context.fillRect(0,0,645,520);
 	
@@ -547,7 +559,10 @@ CanvasModel.prototype.restoreStroke = function(from , type){
 	}
 };
 
-
+/**
+*resolve the canvas to dataURL
+*@return {String} dataURL 
+*/
 CanvasModel.prototype.getCanvas = function(){
 	var dataURL = $('#mycanvas').get(0).toDataURL();
 	return dataURL;
@@ -561,6 +576,7 @@ CanvasModel.prototype.recoverCanvas = function(url){
 		self.context.fillRect(0,0,645,520);
 	}
 	
+	//cover a img over the canvas
 	var img = $('<img></img>');
 	img.attr('src' , url);
 	img.load(function(){
@@ -605,7 +621,6 @@ function LoginModel(){
 	this.roomId;
 	this.password;
 	this.username;
-
 }
 
 
@@ -741,7 +756,11 @@ function RoomModel(){
 	this.you;
 }
 
-
+/**
+*call this function when you create or join a room
+*@param {Array} data  = [tag , [roomId , [users]]]
+*@param {String} me is my name
+*/
 RoomModel.prototype.comeIn = function(data , me){
 	this.roomId = data[1][0];
 	var users = data[1][1];
@@ -754,15 +773,17 @@ RoomModel.prototype.comeIn = function(data , me){
 		addPartnerAnimation(this.you);
 	}
 	this.me = me;
-	comeInAnimation(this.me);
+	comeInAnimation(this.me);//show animation
 };
 
-
+/**
+*call this function when your partner comes in
+*@param {String} partner is your partner's name
+*/
 RoomModel.prototype.partnerIn = function(partner){
 	this.you = partner;
 	infomationAnimation.showInformation(partner + ' comes In!');
 	addPartnerAnimation(partner);
-	
 };
 
 
@@ -784,17 +805,6 @@ RoomModel.prototype.chat = function(from , data){
 };
 
 
-// RoomModel.prototype.isPartnerIn = function(partner){
-// 	var i;
-// 	partner = partner.toString();
-// 	var users = this.users;
-// 	for(i in users){
-// 		if(partner === users[i]) return true;
-// 	}
-// 	return false;
-// };
-
-
 
 //  main    ============================================================
 //======================================================================
@@ -806,6 +816,7 @@ RoomModel.prototype.chat = function(from , data){
 var controller = new Controller();
 controller.init();
 controller.loadRoomId();
+
 
 $(document).ready(function(){
 
@@ -825,7 +836,6 @@ $(document).ready(function(){
 			submit.bind('click' , function(){
 				console.log('create');
 				controller.createRoom(getFormData());//------------call createRoom functin
-				//showCanvasAnimation();
 			});
 		}else{
 			$('.room_id > .form_label').fadeIn(150);
@@ -958,9 +968,6 @@ $(document).ready(function(){
 		if(!this.value) $(this).parent().children('span').fadeIn(100);
 	});
 
-
-
-
 });
 
 
@@ -989,15 +996,6 @@ var toolAnimation = {
 	
 
 		tool.click(function(e){
-			// if(self.active === ''){
-			// 	self.active = e.currentTarget.id;
-			// 	return;
-			// }
-			// if(self.active !== e.currentTarget.id){
-			// 	var temp = self.active;
-			// 	self.active = e.currentTarget.id;
-			// 	$('#' + temp).mouseleave();
-			// }
 			if($(this).hasClass('active')) return;
 			if($('.active').get(0)) $('.active').removeClass('active').mouseleave();
 			$(this).addClass('active');
@@ -1098,6 +1096,8 @@ var toolAnimation = {
 	},
 };
 
+
+
 /**
 *@description get form data , include roomId, password, uername
 *@return {Array} [roomId , password , username]
@@ -1109,6 +1109,7 @@ var getFormData = function(){
 
 	return [roomId , password , username];
 };
+
 
 var clearFormData = function(){
 	$('#roomId').get(0).value = null;
@@ -1147,7 +1148,7 @@ var showLoginPanelAnimation = function(){
 };
 
 
-
+//form error animation=========================================
 var showRoomIdError = function(error){
 	showError($('.room_id') , error);
 };
@@ -1173,6 +1174,8 @@ var clearError = function(elem){
 	elem.children('.form_error').html('').css('display' , 'none');
 	elem.children('.form_req').css('display' , 'block');
 };
+//===============================================================
+
 
 
 var comeInAnimation = function(user){
@@ -1185,7 +1188,6 @@ var comeInAnimation = function(user){
 
 /**
 *@description add partner's name to list 
-*@param {Array} partners is the array of partner's name
 */
 var addPartnerAnimation = function(partner){
 	var you = $('<div><span>' + partner + '</span></div>').addClass('user partner');
@@ -1196,11 +1198,12 @@ var addPartnerAnimation = function(partner){
 
 /**
 *@description converse function of upper one, but param is a string, not a array!
-*@param {String} partner
 */
 var removePartnerAnimation = function(){
 	$('.partner').detach();
 };
+
+
 
 /**
 *@desciption check if mouse is out of canvas
@@ -1221,6 +1224,9 @@ var mouseOutOfCanvas = function(x , y){
 };
 
 
+/**
+*the class in charge of the information showed upper the canvas
+*/
 var infomationAnimation = {
 	'interval': {},
 	'showInformation':function(info){
@@ -1241,6 +1247,8 @@ var infomationAnimation = {
 		animation();
 	},
 };
+
+
 
 var CanvasMaskAnimation = {
 	'interval':'',
@@ -1267,9 +1275,12 @@ var CanvasMaskAnimation = {
 };
 
 
+
+
 var getCanvasElement = function(){
 	return $('canvas').get(0);
 };
+
 
 
 //Stroke Setting Panel==================================
@@ -1411,6 +1422,11 @@ var strokeSettingPanel = {
 };
 
 
+
+/**
+*bind the event about canvas
+*
+*/
 var bindCanvasEvent = function(){
 	var canvas_eraser = $('.canvas_eraser');
 	$('#erase').click(function(){
@@ -1449,6 +1465,7 @@ var bindCanvasEvent = function(){
 };
 
 
+
 var addShot = function(url){
 	var img = $('#shot');
 	if(!img.get(0)){
@@ -1481,6 +1498,7 @@ var addChatAnimation = function(from , data){
 	new_item.animate({'margin-top' : '10px'});
 
 };
+
 
 var clearChatList = function(){
 	$('#chat_list').empty();

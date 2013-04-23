@@ -5,7 +5,6 @@
 
 var express = require('express')
   , routes = require('./routes')
-  , user = require('./routes/user')
   , http = require('http')
   , path = require('path');
 
@@ -29,8 +28,6 @@ app.configure('development', function(){
 
 //route
 app.get('/', routes.index);
-app.get('/client',user.client);
-app.get('/fuck',user.fuck);
 
 //=============================================
 

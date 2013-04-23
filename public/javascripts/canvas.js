@@ -9,7 +9,7 @@ function Socket(controller){
 }
 
 Socket.prototype.init = function(host){
-	this._socket = io.connect('http://' + host);
+	this._socket = io.connect(host);
 };
 
 Socket.prototype.on = function(){
@@ -44,12 +44,18 @@ Socket.prototype.on = function(){
 		self.controller.chooseAction(res);
 	});
 
-	this._socket.on('recover_res' , function(res){
-
+	this._socket.on('recover_canvas_res' , function(res){
+		self._socket.emit('recover_canvas_over_req' , '');
+		self.controller.recoverCanvasRes(res);
 	});
 
-	this._socket.on('get_canvas_req' , function(req){
+	this._socket.on('recover_canvas_over_res' , function(res){
+		self.controller.partnerRecoverOver();
+	});
 
+
+	this._socket.on('get_canvas_req' , function(req){
+		self.controller.getCanvas(1);
 	});
 
 	this._socket.on('reconnect' , function(){
@@ -119,7 +125,7 @@ Socket.prototype.splitData = function(data){
 Socket.prototype.emitCanvasReq = function(type , data){
 	this.reqNumber++;
 	if(this.reqNumber > 500){
-		self.controller.getCanvas();
+		self.controller.getCanvas(0);
 		this.reqNumber = 0;
 	}
 	var req_data = this.packData(type , data);
@@ -161,7 +167,7 @@ function Controller(){
 
 Controller.prototype.init = function(){
 	this.socketIO = new Socket(this);
-	this.socketIO.init('localhost');
+	this.socketIO.init('192.168.47.84');
 	this.socketIO.on();
 	this.loginModel = new LoginModel();
 	//this.canvasModel = new CanvasModel();
@@ -188,7 +194,6 @@ Controller.prototype.moveInCanvas = function(e){
 	}else{
 		self.canvasModel.draw(e);
 	}
-	
 	
 };
 
@@ -271,9 +276,14 @@ Controller.prototype.chooseAction = function(data){
 // };
 
 
-Controller.prototype.getCanvas = function(){
+Controller.prototype.getCanvas = function(tag){
 	var canvas_data = this.canvasModel.getCanvas();
-	this.socketIO.uploadCanvas(canvas_data);
+	if(tag === 0){
+		this.socketIO.uploadCanvas(canvas_data);
+	}else{
+		CanvasMaskAnimation.showCanvasMask('Your Partner Is Recovering');
+		this.socketIO.emit('get_canvas_res', canvas_data);
+	}
 };
 
 
@@ -332,17 +342,28 @@ Controller.prototype.joinRoom = function(formData){
 Controller.prototype.joinRoomRes = function(res){
 	var success = res[0];
 	if(success){
-		var url = res[1][2];
+		// var url = res[1][2];
 		this.canvasModel = new CanvasModel();
-		this.canvasModel.init(getCanvasElement() , url);
+		this.canvasModel.init(getCanvasElement());
 		this.roomModel = new RoomModel();
 		this.roomModel.comeIn(res , this.loginModel.getUsername());
 		bindCanvasEvent();
 		showCanvasAnimation();
+		CanvasMaskAnimation.showCanvasMask('Recovering Paper');
+		this.socketIO.emit('recover_canvas_req' , '');
 		
 	}else{
 		showRoomIdError(res[1]);
 	}
+};
+
+Controller.prototype.recoverCanvasRes = function(res){
+	this.canvasModel.recoverCanvas(res);
+	CanvasMaskAnimation.hideCanvasMask();
+};
+
+Controller.prototype.partnerRecoverOver = function(res){
+	CanvasMaskAnimation.hideCanvasMask();
 };
 
 
@@ -420,15 +441,17 @@ CanvasModel.prototype.setType = function(from , type){
 };
 
 
-CanvasModel.prototype.init = function(canvas , url){
+CanvasModel.prototype.init = function(canvas){
 	this.canvas = canvas;
 	this.context = this.canvas.getContext('2d');
+	// this.context.fillStyle = '#fff';
+	// if(url.length < 1){
+	// 	this.context.fillRect(0,0,600,520);
+	// }else{
+	// 	this.recoverCanvas(url);
+	// }
 	this.context.fillStyle = '#fff';
-	if(url.length < 1){
-		this.context.fillRect(0,0,900,520);
-	}else{
-		this.recoverCanvas(url);
-	}
+	this.context.fillRect(0,0,645,520);
 	
 };
 
@@ -533,6 +556,11 @@ CanvasModel.prototype.getCanvas = function(){
 
 CanvasModel.prototype.recoverCanvas = function(url){
 	var self = this;
+	if(!url || url.length < 10){
+		self.context.fillStyle = '#fff';
+		self.context.fillRect(0,0,645,520);
+	}
+	
 	var img = $('<img></img>');
 	img.attr('src' , url);
 	img.load(function(){
@@ -1214,14 +1242,30 @@ var infomationAnimation = {
 	},
 };
 
+var CanvasMaskAnimation = {
+	'interval':'',
+	'showCanvasMask': function(info){
+		var msk = $('<div><span>' + info + '</span></div>').addClass('canvas_mask');
+		msk.appendTo('#canvas_wrap');
+		msk.css('z-index' , 1);
+		msk.fadeIn(200);
+		var a = function(){
+			msk.children('span').fadeIn(400);
+			msk.children('span').fadeOut(2000);
+			this.interval = setTimeout(a , 100);
+		}
+		a();
+	},
 
-var showCanvasMask = function(info){
+	'hideCanvasMask': function(){
+		var msk = $('.canvas_mask');
+		msk.fadeOut(200);
+		msk.remove();
+		clearTimeout(this.interval);
+	},
 
 };
 
-var hideCanvasMask = function(){
-
-};
 
 var getCanvasElement = function(){
 	return $('canvas').get(0);
